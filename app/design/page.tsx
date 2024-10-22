@@ -26,7 +26,6 @@ export default function DesignPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-between p-8 bg-gradient-to-b from-zinc-200 to-white dark:from-zinc-800 dark:to-black">
       <Header />
-      <Navbar />
       
       <main className="w-full max-w-5xl">
         <h1 className="text-4xl font-bold mb-8 text-center">Model Configuration</h1>
@@ -148,7 +147,7 @@ export default function DesignPage() {
           </button>
         </div>
       </main>
-
+      <Navbar />
       <Footer />
     </div>
   );

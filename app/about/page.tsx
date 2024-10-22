@@ -10,7 +10,6 @@ const AboutPage = () => {
   return (
     <div className="flex min-h-screen flex-col items-center justify-between bg-gradient-to-b from-zinc-200 to-white dark:from-zinc-800 dark:to-black">
       <Header />
-      <Navbar />
 
       <main className="w-full max-w-5xl px-4 py-8">
         <h1 className="text-4xl font-bold mb-8 text-center">About PilotNet</h1>
@@ -76,7 +75,7 @@ const AboutPage = () => {
           </div>
         </div>
       </main>
-
+      <Navbar />
       <Footer />
     </div>
   );

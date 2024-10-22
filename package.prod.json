@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "scripts": {
-    "fastapi-dev": "cd ../Pilotnet && source .venv/bin/activate && python -m uvicorn api.main:app --reload",
+    "fastapi-dev": "cd ../Pilotnet && python -m pip install -r requirements.local.txt && python -m uvicorn api.main:app --reload",
     "next-dev": "next dev",
     "dev": "concurrently \"npm run next-dev\" \"npm run fastapi-dev\"",
     "build": "next build",
