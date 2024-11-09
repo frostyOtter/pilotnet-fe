@@ -1,26 +1,59 @@
-"use client";
+// page.tsx
+'use client';
 
-import React, { useState, useEffect } from 'react';
-import Header from '../components/Header';
-import Navbar from '../components/Navbar';
-import Footer from '../components/Footer';
+import React, { useEffect } from 'react';
+import Header from '@/app/components/Header';
+import Navbar from '@/app/components/Navbar';
+import Footer from '@/app/components/Footer';
+import { MediaControlPanel } from './components/MediaControlPanel';
+import { MediaDisplay } from './components/MediaDisplay';
+import { SteeringDemoModal } from './components/SteeringDemoModal';
+import { useMediaState } from './hooks/useMediaState';
+import { useDemoState } from './hooks/useDemoState';
+import * as api from './utils/api';
 
 export default function DataPage() {
-  const [availableMedia, setAvailableMedia] = useState({ videos: [], images: [], video_count: 0, image_count: 0 });
-  const [randomVideoBlob, setRandomVideoBlob] = useState<string | null>(null);
-  const [randomImageBlobs, setRandomImageBlobs] = useState<string[]>([]);
-  const [mediaId, setMediaId] = useState('');
-  const [selectedVideoBlob, setSelectedVideoBlob] = useState<string | null>(null);
-  const [selectedImageBlob, setSelectedImageBlob] = useState<string | null>(null);
+  const {
+    availableMedia,
+    setAvailableMedia,
+    randomVideoBlob,
+    setRandomVideoBlob,
+    randomImageBlobs,
+    setRandomImageBlobs,
+    mediaId,
+    setMediaId,
+    selectedVideoBlob,
+    setSelectedVideoBlob,
+    selectedImageBlob,
+    setSelectedImageBlob,
+    currentMediaId,
+    setCurrentMediaId,
+  } = useMediaState();
+
+  const {
+    isDemoModalOpen,
+    setIsDemoModalOpen,
+    demoSteeringAngle,
+    setDemoSteeringAngle,
+    isStreamingDemo,
+    setIsStreamingDemo,
+    demoWebSocket,
+    setDemoWebSocket
+  } = useDemoState();
 
   useEffect(() => {
     fetchAvailableMedia();
+    // Cleanup WebSocket on unmount
+    return () => {
+      if (demoWebSocket) {
+        demoWebSocket.close();
+      }
+    };
   }, []);
 
   const fetchAvailableMedia = async () => {
     try {
-      const response = await fetch('/api/py/data/available-media');
-      const data = await response.json();
+      const data = await api.fetchAvailableMedia();
       setAvailableMedia(data);
     } catch (error) {
       console.error('Error fetching media data:', error);
@@ -29,11 +62,10 @@ export default function DataPage() {
 
   const handleGetRandomVideo = async () => {
     try {
-      const response = await fetch('/api/py/data/random-video');
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const { url, filename } = await api.fetchRandomVideo();
       setRandomVideoBlob(url);
       setSelectedVideoBlob(null);
+      setCurrentMediaId(filename);
     } catch (error) {
       console.error('Error fetching random video:', error);
     }
@@ -41,17 +73,10 @@ export default function DataPage() {
 
   const handleGetRandomImages = async () => {
     try {
-      const response = await fetch('/api/py/data/random-images');
-      const data = await response.json();
-      const imageBlobs = await Promise.all(
-        data.image_paths.map(async (path: string) => {
-          const imageResponse = await fetch(`/api/py/data/image/${path}`);
-          const blob = await imageResponse.blob();
-          return URL.createObjectURL(blob);
-        })
-      );
-      setRandomImageBlobs(imageBlobs);
+      const { blobs, paths } = await api.fetchRandomImages();
+      setRandomImageBlobs(blobs);
       setSelectedImageBlob(null);
+      setCurrentMediaId(paths[0]);
     } catch (error) {
       console.error('Error fetching random images:', error);
     }
@@ -59,11 +84,10 @@ export default function DataPage() {
 
   const handleGetVideoById = async () => {
     try {
-      const response = await fetch(`/api/py/data/video/${mediaId}`);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const { url } = await api.fetchMediaById(mediaId, 'video');
       setSelectedVideoBlob(url);
       setRandomVideoBlob(null);
+      setCurrentMediaId(mediaId);
     } catch (error) {
       console.error('Error fetching video by ID:', error);
     }
@@ -71,13 +95,43 @@ export default function DataPage() {
 
   const handleGetImageById = async () => {
     try {
-      const response = await fetch(`/api/py/data/image/${mediaId}`);
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
+      const { url } = await api.fetchMediaById(mediaId, 'image');
       setSelectedImageBlob(url);
       setRandomImageBlobs([]);
+      setCurrentMediaId(mediaId);
     } catch (error) {
       console.error('Error fetching image by ID:', error);
+    }
+  };
+
+  const handleSteeringDemo = async () => {
+    if (!currentMediaId) return;
+
+    try {
+      setIsDemoModalOpen(true);
+      setIsStreamingDemo(true);
+
+      const isVideo = Boolean(selectedVideoBlob || randomVideoBlob);
+      const result = await api.startSteeringDemo(currentMediaId, isVideo);
+
+      if (isVideo && result.ws) {
+        setDemoWebSocket(result.ws);
+      } else {
+        setDemoSteeringAngle(result.results.steering_angle);
+      }
+    } catch (error) {
+      console.error('Error in steering demo:', error);
+      alert('Error running steering demo');
+      handleCloseDemo();
+    }
+  };
+
+  const handleCloseDemo = () => {
+    setIsDemoModalOpen(false);
+    setIsStreamingDemo(false);
+    if (demoWebSocket) {
+      demoWebSocket.close();
+      setDemoWebSocket(null);
     }
   };
 
@@ -88,65 +142,39 @@ export default function DataPage() {
       <main className="w-full max-w-5xl">
         <h1 className="text-4xl font-bold mb-8 text-center">Data Explorer</h1>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-md">
-            <h2 className="text-2xl font-semibold mb-4">Available Media</h2>
-            <p>Videos: {availableMedia.video_count}</p>
-            <p>Images: {availableMedia.image_count}</p>
-          </div>
+        <MediaControlPanel
+          availableMedia={availableMedia}
+          onGetRandomVideo={handleGetRandomVideo}
+          onGetRandomImages={handleGetRandomImages}
+          mediaId={mediaId}
+          onMediaIdChange={setMediaId}
+          onGetVideoById={handleGetVideoById}
+          onGetImageById={handleGetImageById}
+        />
 
-          <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-md">
-            <h2 className="text-2xl font-semibold mb-4">Random Media</h2>
-            <button onClick={handleGetRandomVideo} className="bg-blue-500 text-white px-4 py-2 rounded mr-2">Get Random Video</button>
-            <button onClick={handleGetRandomImages} className="bg-green-500 text-white px-4 py-2 rounded">Get Random Images</button>
-          </div>
-        </div>
+        <MediaDisplay
+          selectedVideoBlob={selectedVideoBlob}
+          selectedImageBlob={selectedImageBlob}
+          randomVideoBlob={randomVideoBlob}
+          randomImageBlobs={randomImageBlobs}
+          onSteeringDemo={handleSteeringDemo}
+        />
 
-        <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-md mb-8">
-          <h2 className="text-2xl font-semibold mb-4">Get Media by ID</h2>
-          <input
-            type="text"
-            value={mediaId}
-            onChange={(e) => setMediaId(e.target.value)}
-            placeholder="Enter media ID"
-            className="border p-2 mr-2"
-          />
-          <button onClick={handleGetVideoById} className="bg-blue-500 text-white px-4 py-2 rounded mr-2">Get Video</button>
-          <button onClick={handleGetImageById} className="bg-green-500 text-white px-4 py-2 rounded">Get Image</button>
-        </div>
-
-        {selectedVideoBlob && (
-          <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-md mb-8">
-            <h2 className="text-2xl font-semibold mb-4">Selected Video</h2>
-            <video src={selectedVideoBlob} controls className="w-full" />
-          </div>
-        )}
-
-        {selectedImageBlob && (
-          <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-md mb-8">
-            <h2 className="text-2xl font-semibold mb-4">Selected Image</h2>
-            <img src={selectedImageBlob} alt="Selected image" className="w-full h-auto" />
-          </div>
-        )}
-
-        {randomVideoBlob && !selectedVideoBlob && (
-          <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-md mb-8">
-            <h2 className="text-2xl font-semibold mb-4">Random Video</h2>
-            <video src={randomVideoBlob} controls className="w-full" />
-          </div>
-        )}
-
-        {randomImageBlobs.length > 0 && !selectedImageBlob && (
-          <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-md mb-8">
-            <h2 className="text-2xl font-semibold mb-4">Random Images</h2>
-            <div className="grid grid-cols-3 gap-4">
-              {randomImageBlobs.map((blob, index) => (
-                <img key={index} src={blob} alt={`Random image ${index + 1}`} className="w-full h-auto" />
-              ))}
-            </div>
-          </div>
-        )}
+        <SteeringDemoModal
+          isOpen={isDemoModalOpen}
+          onClose={handleCloseDemo}
+          mediaUrl={
+            selectedVideoBlob || 
+            randomVideoBlob || 
+            selectedImageBlob || 
+            (randomImageBlobs.length > 0 ? randomImageBlobs[0] : null)
+          }
+          steeringAngle={demoSteeringAngle}
+          isVideo={Boolean(selectedVideoBlob || randomVideoBlob)}
+          websocket={demoWebSocket}
+        />
       </main>
+
       <Navbar />
       <Footer />
     </div>
