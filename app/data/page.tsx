@@ -7,10 +7,11 @@ import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
 import { MediaControlPanel } from './components/MediaControlPanel';
 import { MediaDisplay } from './components/MediaDisplay';
-import { SteeringDemoModal } from './components/SteeringDemoModal';
+import SteeringDemoModal from './components/SteeringDemoModal';
 import { useMediaState } from './hooks/useMediaState';
 import { useDemoState } from './hooks/useDemoState';
 import * as api from './utils/api';
+import { SteeringDemoResponse } from './types';
 
 export default function DataPage() {
   const {
@@ -38,12 +39,15 @@ export default function DataPage() {
     isStreamingDemo,
     setIsStreamingDemo,
     demoWebSocket,
-    setDemoWebSocket
+    setDemoWebSocket,
+    cachedPredictions,
+    setCachedPredictions,
+    isPredictionCached,
+    setIsPredictionCached
   } = useDemoState();
 
   useEffect(() => {
     fetchAvailableMedia();
-    // Cleanup WebSocket on unmount
     return () => {
       if (demoWebSocket) {
         demoWebSocket.close();
@@ -112,12 +116,25 @@ export default function DataPage() {
       setIsStreamingDemo(true);
 
       const isVideo = Boolean(selectedVideoBlob || randomVideoBlob);
-      const result = await api.startSteeringDemo(currentMediaId, isVideo);
+      const result: SteeringDemoResponse = await api.startSteeringDemo(currentMediaId, isVideo);
 
-      if (isVideo && result.ws) {
-        setDemoWebSocket(result.ws);
+      if (isVideo) {
+        if (result.cached && result.predictions) {
+          // Handle cached predictions
+          setCachedPredictions(result.predictions);
+          setIsPredictionCached(true);
+          setDemoWebSocket(null);
+        } else {
+          // Handle real-time processing
+          setIsPredictionCached(false);
+          setCachedPredictions([]); // Initialize with empty array instead of null
+          setDemoWebSocket(result.ws);
+        }
       } else {
-        setDemoSteeringAngle(result.results.steering_angle);
+        // Handle image predictions
+        if (result.predictions && result.predictions.length > 0) {
+          setDemoSteeringAngle(result.predictions[0].angle);
+        }
       }
     } catch (error) {
       console.error('Error in steering demo:', error);
@@ -129,6 +146,8 @@ export default function DataPage() {
   const handleCloseDemo = () => {
     setIsDemoModalOpen(false);
     setIsStreamingDemo(false);
+    setIsPredictionCached(false);
+    setCachedPredictions([]); // Always initialize with empty array
     if (demoWebSocket) {
       demoWebSocket.close();
       setDemoWebSocket(null);
@@ -169,6 +188,7 @@ export default function DataPage() {
             selectedImageBlob || 
             (randomImageBlobs.length > 0 ? randomImageBlobs[0] : null)
           }
+          mediaId={currentMediaId}
           steeringAngle={demoSteeringAngle}
           isVideo={Boolean(selectedVideoBlob || randomVideoBlob)}
           websocket={demoWebSocket}

@@ -1,10 +1,15 @@
+// hooks/useDemoState.ts
+
 import { useState, useEffect } from 'react';
+import { TelemetryData } from '../types';
 
 export const useDemoState = () => {
   const [isDemoModalOpen, setIsDemoModalOpen] = useState<boolean>(false);
   const [demoSteeringAngle, setDemoSteeringAngle] = useState<number>(0);
   const [isStreamingDemo, setIsStreamingDemo] = useState<boolean>(false);
   const [demoWebSocket, setDemoWebSocket] = useState<WebSocket | null>(null);
+  const [cachedPredictions, setCachedPredictions] = useState<TelemetryData[]>([]);
+  const [isPredictionCached, setIsPredictionCached] = useState<boolean>(false);
 
   useEffect(() => {
     // Cleanup WebSocket on unmount
@@ -23,6 +28,10 @@ export const useDemoState = () => {
     isStreamingDemo,
     setIsStreamingDemo,
     demoWebSocket,
-    setDemoWebSocket
+    setDemoWebSocket,
+    cachedPredictions,
+    setCachedPredictions,
+    isPredictionCached,
+    setIsPredictionCached
   };
 };

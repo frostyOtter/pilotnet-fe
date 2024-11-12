@@ -1,3 +1,6 @@
+// utils/api.ts
+import { CacheCheckResponse, SteeringDemoResponse, TelemetryData } from '../types';
+
 export const fetchAvailableMedia = async () => {
   try {
     const response = await fetch('/api/py/data/available-media');
@@ -52,14 +55,38 @@ export const fetchMediaById = async (mediaId: string, type: 'video' | 'image') =
   }
 };
 
+export const checkPredictionCache = async (videoId: string): Promise<CacheCheckResponse> => {
+  try {
+    const response = await fetch(`/api/py/demo/check-cache/${videoId}`);
+    if (!response.ok) {
+      throw new Error('Failed to check prediction cache');
+    }
+    return await response.json();
+  } catch (error) {
+    console.error('Error checking prediction cache:', error);
+    return { cached: false };
+  }
+};
+
 export const startSteeringDemo = async (
   mediaId: string, 
-  isVideo: boolean, 
-) => {
+  isVideo: boolean,
+): Promise<SteeringDemoResponse> => {
   try {
     if (isVideo) {
-      // For videos, we'll use WebSocket for real-time updates
-      const ws = new WebSocket('ws://localhost:8000/api/demo/ws/steering');
+      // First check if we have cached predictions
+      const cacheCheck = await checkPredictionCache(mediaId);
+      
+      if (cacheCheck.cached && cacheCheck.predictions) {
+        return { 
+          cached: true,
+          predictions: cacheCheck.predictions,
+          ws: null
+        };
+      }
+
+      // If no cache, start WebSocket connection for real-time processing
+      const ws = new WebSocket(`ws://localhost:8000/api/demo/ws/steering`);
       
       ws.onopen = () => {
         ws.send(JSON.stringify({
@@ -67,24 +94,34 @@ export const startSteeringDemo = async (
         }));
       };
 
-      return { ws };
+      return { 
+        cached: false,
+        predictions: null,
+        ws 
+      };
     } else {
-      // For images, we'll use REST API
-      const endpoint = `/api/py/demo/evaluate-image/${mediaId}`;
-      const response = await fetch(endpoint, {
+      // For images, use REST API
+      const response = await fetch(`/api/py/demo/evaluate-image/${mediaId}`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ 
-        }),
       });
 
       if (!response.ok) {
         throw new Error('Failed to start steering demo');
       }
 
-      return await response.json();
+      const result = await response.json();
+      return {
+        cached: false,
+        predictions: [{
+          angle: result.results.steering_angle,
+          timestamp: 0,
+          status: 'complete'
+        }],
+        ws: null
+      };
     }
   } catch (error) {
     console.error('Error in steering demo:', error);

@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import Image from 'next/image';
+import SynchronizedVideoPlayer from './SynchronizedVideoPlayer';
 import { TelemetryData } from '../types';
 
 interface SteeringDemoModalProps {
   isOpen: boolean;
   onClose: () => void;
   mediaUrl: string | null;
+  mediaId: string | null;
   steeringAngle: number;
   isVideo: boolean;
   websocket: WebSocket | null;
@@ -15,61 +17,55 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
   isOpen,
   onClose,
   mediaUrl,
+  mediaId,
   steeringAngle,
   isVideo,
   websocket
 }) => {
-  const [telemetry, setTelemetry] = useState<TelemetryData[]>([]);
   const [currentAngle, setCurrentAngle] = useState(0);
   const [status, setStatus] = useState<'analyzing' | 'streaming' | 'complete' | 'error'>('analyzing');
+  const [cachedPredictions, setCachedPredictions] = useState<TelemetryData[]>([]);
+  const [isPredictionCached, setIsPredictionCached] = useState(false);
 
   useEffect(() => {
-    if (websocket) {
-      websocket.onmessage = (event) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.status === 'error') {
-          setStatus('error');
-          console.error('Steering demo error:', data.message);
-          return;
-        }
-        
-        if (data.status === 'complete') {
-          setStatus('complete');
-          return;
-        }
-        
-        setStatus('streaming');
-        setCurrentAngle(data.angle);
-        setTelemetry(prev => [...prev, {
-          angle: data.angle,
-          timestamp: data.timestamp,
-          status: 'streaming'
-        }]);
-      };
+    if (isVideo && mediaId) {
+      checkPredictionsCache();
+    }
+  }, [mediaId, isVideo]);
 
-      websocket.onerror = (error) => {
-        console.error('WebSocket error:', error);
-        setStatus('error');
-      };
-
-      websocket.onclose = () => {
-        if (status !== 'error') {
-          setStatus('complete');
-        }
-      };
-    } else {
-      // For images, use the direct steering angle
+  useEffect(() => {
+    if (!isVideo) {
       setCurrentAngle(steeringAngle);
       setStatus('complete');
     }
+  }, [isVideo, steeringAngle]);
 
-    return () => {
-      if (websocket) {
-        websocket.close();
+  const checkPredictionsCache = async () => {
+    try {
+      const response = await fetch(`/api/py/demo/check-cache/${mediaId}`);
+      const data = await response.json();
+      
+      if (data.cached) {
+        setIsPredictionCached(true);
+        setCachedPredictions(data.predictions);
+        setStatus('complete');
+      } else {
+        setIsPredictionCached(false);
+        setCachedPredictions([]);
       }
-    };
-  }, [websocket, steeringAngle]);
+    } catch (error) {
+      console.error('Error checking predictions cache:', error);
+      setIsPredictionCached(false);
+    }
+  };
+
+  const handleVideoEnd = (predictions: TelemetryData[]) => {
+    setStatus('complete');
+  };
+
+  const handleAngleChange = (angle: number) => {
+    setCurrentAngle(angle);
+  };
 
   if (!mediaUrl) return null;
 
@@ -89,38 +85,41 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           {/* Media Display */}
-          <div className="relative rounded-lg overflow-hidden bg-black">
+          <div>
             {isVideo ? (
-              <video 
-                src={mediaUrl} 
-                autoPlay 
-                loop 
-                muted 
-                controls
-                className="w-full h-auto"
+              <SynchronizedVideoPlayer
+                videoUrl={mediaUrl}
+                websocket={websocket}
+                onEnd={handleVideoEnd}
+                isPredictionCached={isPredictionCached}
+                cachedPredictions={cachedPredictions}
+                onAngleChange={handleAngleChange}
               />
             ) : (
-              <img 
-                src={mediaUrl} 
-                alt="Demo media" 
-                className="w-full h-auto"
-              />
+              <div className="relative rounded-lg overflow-hidden bg-black">
+                <img 
+                  src={mediaUrl} 
+                  alt="Demo media" 
+                  className="w-full h-auto"
+                />
+              </div>
             )}
           </div>
 
           {/* Steering Wheel and Telemetry */}
           <div className="flex flex-col items-center space-y-6">
-            {/* Steering Wheel */}
+            {/* Steering Wheel with dynamic rotation */}
             <div className="relative w-64 h-64">
               <div 
-                className="w-full h-full transition-transform duration-150"
+                className="relative w-full h-full transition-transform duration-150 ease-out"
                 style={{ transform: `rotate(${currentAngle}deg)` }}
               >
                 <Image
                   src="/steering_wheel_image.jpg"
                   alt="Steering Wheel"
-                  layout="fill"
-                  objectFit="contain"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                  style={{ objectFit: 'contain' }}
                   priority
                 />
               </div>
@@ -146,17 +145,21 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
                     status === 'error' ? 'bg-red-500' :
                     'bg-yellow-500'
                   }`} />
-                  <span className="capitalize">{status}</span>
+                  <span className="capitalize">
+                    {isPredictionCached ? 'Using cached predictions' : status}
+                  </span>
                 </div>
               </div>
 
-              {/* Latest Telemetry (for videos) */}
-              {isVideo && telemetry.length > 0 && (
+              {/* Processing Info */}
+              {isVideo && (
                 <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-                  <h3 className="text-lg font-semibold mb-2">Latest Telemetry</h3>
+                  <h3 className="text-lg font-semibold mb-2">Processing Info</h3>
                   <div className="space-y-2">
-                    <p>Time: {telemetry[telemetry.length - 1].timestamp.toFixed(2)}s</p>
-                    <p>Frames Processed: {telemetry.length}</p>
+                    <p>Source: {isPredictionCached ? 'Cache' : 'Real-time'}</p>
+                    {status === 'streaming' && !isPredictionCached && (
+                      <p>Processing frames in real-time...</p>
+                    )}
                   </div>
                 </div>
               )}
