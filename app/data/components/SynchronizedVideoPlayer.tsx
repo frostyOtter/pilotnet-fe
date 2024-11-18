@@ -7,11 +7,12 @@ interface SynchronizedVideoPlayerProps {
   onEnd: (predictions: TelemetryData[]) => void;
   isPredictionCached: boolean;
   cachedPredictions?: TelemetryData[];
-  onAngleChange: (angle: number) => void;  // New callback prop for angle updates
+  onAnglesUpdate: (predicted: number, groundTruth: number) => void;
 }
 
 interface Prediction {
-  angle: number;
+  predictedAngle: number;
+  groundTruthAngle: number;
   timestamp: number;
 }
 
@@ -21,17 +22,27 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
   onEnd,
   isPredictionCached,
   cachedPredictions = [],
-  onAngleChange
+  onAnglesUpdate
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isFirstFrameProcessed, setIsFirstFrameProcessed] = useState<boolean>(false);
-  const [predictions, setPredictions] = useState<Prediction[]>(cachedPredictions);
+  const [predictions, setPredictions] = useState<Prediction[]>(
+    cachedPredictions.map(pred => ({
+      predictedAngle: pred.angle,
+      groundTruthAngle: pred.ground_truth_angle || 0,
+      timestamp: pred.timestamp
+    }))
+  );
   const [currentPredictionIndex, setCurrentPredictionIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   useEffect(() => {
     if (isPredictionCached && cachedPredictions.length > 0) {
-      setPredictions(cachedPredictions);
+      setPredictions(cachedPredictions.map(pred => ({
+        predictedAngle: pred.angle,
+        groundTruthAngle: pred.ground_truth_angle || 0,
+        timestamp: pred.timestamp
+      })));
       setIsFirstFrameProcessed(true);
     } else if (websocket) {
       websocket.onmessage = (event: MessageEvent) => {
@@ -49,7 +60,8 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
         
         if (data.status === 'streaming') {
           setPredictions(prev => [...prev, {
-            angle: data.angle,
+            predictedAngle: data.predicted_angle,
+            groundTruthAngle: data.ground_truth_angle,
             timestamp: data.timestamp
           }]);
         }
@@ -63,7 +75,6 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
     };
   }, [websocket, isPredictionCached, cachedPredictions]);
 
-  // Handle video time updates
   useEffect(() => {
     const video = videoRef.current;
     
@@ -81,16 +92,22 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
       
       if (newIndex !== -1) {
         setCurrentPredictionIndex(newIndex);
-        // Call onAngleChange with the current angle
-        const currentAngle = predictions[newIndex]?.angle || 0;
-        onAngleChange(currentAngle);
+        const currentPrediction = predictions[newIndex];
+        onAnglesUpdate(
+          currentPrediction.predictedAngle,
+          currentPrediction.groundTruthAngle
+        );
       }
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
       if (onEnd) {
-        onEnd(predictions);
+        onEnd(predictions.map(pred => ({
+          angle: pred.predictedAngle,
+          ground_truth_angle: pred.groundTruthAngle,
+          timestamp: pred.timestamp
+        })));
       }
     };
 
@@ -101,7 +118,7 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
       video?.removeEventListener('timeupdate', handleTimeUpdate);
       video?.removeEventListener('ended', handleEnded);
     };
-  }, [predictions, onEnd, onAngleChange]);
+  }, [predictions, onEnd, onAnglesUpdate]);
 
   const handlePlayPause = () => {
     if (!isFirstFrameProcessed) return;
@@ -115,7 +132,7 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
     }
   };
 
-  const currentAngle = predictions[currentPredictionIndex]?.angle || 0;
+  const currentPrediction = predictions[currentPredictionIndex];
 
   return (
     <div className="relative rounded-lg overflow-hidden bg-black">
@@ -143,8 +160,9 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
               : 'Play'}
         </button>
         
-        <div className="text-white">
-          Steering Angle: {currentAngle.toFixed(1)}°
+        <div className="text-white space-x-4">
+          <span>Predicted: {currentPrediction?.predictedAngle.toFixed(1)}°</span>
+          <span>Ground Truth: {currentPrediction?.groundTruthAngle.toFixed(1)}°</span>
         </div>
       </div>
     </div>

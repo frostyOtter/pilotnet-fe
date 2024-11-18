@@ -5,6 +5,8 @@
   "scripts": {
     "fastapi-dev": "cd ../Pilotnet && source .venv/bin/activate && python -m uvicorn api.main:app --reload",
     "next-dev": "next dev",
+    "dev:front": "next dev",
+    "dev:back": "cd ../Pilotnet && source .venv/bin/activate && python -m uvicorn api.main:app --reload",
     "dev": "concurrently \"npm run next-dev\" \"npm run fastapi-dev\"",
     "build": "next build",
     "start": "next start",

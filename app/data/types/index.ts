@@ -77,24 +77,23 @@ export interface SynchronizedVideoPlayerProps {
   cachedPredictions?: TelemetryData[];
 }
 
-
 export interface TelemetryData {
   angle: number;
+  ground_truth_angle?: number;  // Added ground truth angle
   timestamp: number;
   status?: 'analyzing' | 'streaming' | 'complete' | 'error';
 }
 
-export interface SteeringDemoModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  mediaUrl: string | null;
-  mediaId: string | null;
-  steeringAngle: number;
-  isVideo: boolean;
-  websocket: WebSocket | null;
+export interface SteeringDemoResponse {
+  cached: boolean;
+  predictions: TelemetryData[] | null;
+  ws: WebSocket | null;
 }
 
-export interface CacheCheckResponse {
-  cached: boolean;
-  predictions?: TelemetryData[];
+export interface WebSocketMessage {
+  status: 'streaming' | 'complete' | 'error';
+  predicted_angle?: number;
+  ground_truth_angle?: number;
+  timestamp?: number;
+  message?: string;
 }
