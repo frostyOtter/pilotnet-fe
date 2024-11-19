@@ -1,4 +1,3 @@
-// page.tsx
 'use client';
 
 import React, { useEffect } from 'react';
@@ -8,10 +7,11 @@ import Footer from '@/app/components/Footer';
 import { MediaControlPanel } from './components/MediaControlPanel';
 import { MediaDisplay } from './components/MediaDisplay';
 import SteeringDemoModal from './components/SteeringDemoModal';
+import { SpeedDemoModal } from './components/SpeedDemoModal';
 import { useMediaState } from './hooks/useMediaState';
 import { useDemoState } from './hooks/useDemoState';
 import * as api from './utils/api';
-import { SteeringDemoResponse } from './types';
+import { SteeringDemoResponse, TelemetryData } from './types';
 
 export default function DataPage() {
   const {
@@ -32,6 +32,7 @@ export default function DataPage() {
   } = useMediaState();
 
   const {
+    // Steering demo state
     isDemoModalOpen,
     setIsDemoModalOpen,
     demoSteeringAngle,
@@ -40,10 +41,20 @@ export default function DataPage() {
     setIsStreamingDemo,
     demoWebSocket,
     setDemoWebSocket,
-    cachedPredictions,
-    setCachedPredictions,
-    isPredictionCached,
-    setIsPredictionCached
+    steeringCachedPredictions,
+    setSteeringCachedPredictions,
+    isSteeringPredictionCached,
+    setIsSteeringPredictionCached,
+    
+    // Speed demo state
+    isSpeedModalOpen,
+    setIsSpeedModalOpen,
+    speedWebSocket,
+    setSpeedWebSocket,
+    speedCachedPredictions,
+    setSpeedCachedPredictions,
+    isSpeedPredictionCached,
+    setIsSpeedPredictionCached,
   } = useDemoState();
 
   useEffect(() => {
@@ -51,6 +62,9 @@ export default function DataPage() {
     return () => {
       if (demoWebSocket) {
         demoWebSocket.close();
+      }
+      if (speedWebSocket) {
+        speedWebSocket.close();
       }
     };
   }, []);
@@ -121,36 +135,84 @@ export default function DataPage() {
       if (isVideo) {
         if (result.cached && result.predictions) {
           // Handle cached predictions
-          setCachedPredictions(result.predictions);
-          setIsPredictionCached(true);
+          setSteeringCachedPredictions(result.predictions);
+          setIsSteeringPredictionCached(true);
           setDemoWebSocket(null);
         } else {
           // Handle real-time processing
-          setIsPredictionCached(false);
-          setCachedPredictions([]); // Initialize with empty array instead of null
+          setIsSteeringPredictionCached(false);
+          setSteeringCachedPredictions([]); 
           setDemoWebSocket(result.ws);
         }
       } else {
         // Handle image predictions
         if (result.predictions && result.predictions.length > 0) {
-          setDemoSteeringAngle(result.predictions[0].angle);
+          setDemoSteeringAngle(result.predictions[0].angle || 0);
         }
       }
     } catch (error) {
       console.error('Error in steering demo:', error);
       alert('Error running steering demo');
-      handleCloseDemo();
+      handleCloseSteeringDemo();
     }
   };
 
-  const handleCloseDemo = () => {
+  const handleSpeedDemo = async () => {
+    if (!currentMediaId) return;
+
+    try {
+      setIsSpeedModalOpen(true);
+      const isVideo = Boolean(selectedVideoBlob || randomVideoBlob);
+
+      // Check for cached predictions first
+      const cacheResponse = await api.checkPredictionCache(currentMediaId);
+      if (cacheResponse.cached && cacheResponse.predictions) {
+        setSpeedCachedPredictions(cacheResponse.predictions);
+        setIsSpeedPredictionCached(true);
+        return;
+      }
+
+      // Create WebSocket connection for speed prediction
+      const ws = new WebSocket('ws://localhost:8000/api/demo/ws/speed');
+      setSpeedWebSocket(ws);
+
+      ws.onopen = () => {
+        ws.send(JSON.stringify({
+          video_id: currentMediaId,
+        }));
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket error:', error);
+        alert('Error connecting to speed prediction service');
+        handleCloseSpeedDemo();
+      };
+
+    } catch (error) {
+      console.error('Error in speed demo:', error);
+      alert('Error running speed demo');
+      handleCloseSpeedDemo();
+    }
+  };
+
+  const handleCloseSteeringDemo = () => {
     setIsDemoModalOpen(false);
     setIsStreamingDemo(false);
-    setIsPredictionCached(false);
-    setCachedPredictions([]); // Always initialize with empty array
+    setIsSteeringPredictionCached(false);
+    setSteeringCachedPredictions([]); 
     if (demoWebSocket) {
       demoWebSocket.close();
       setDemoWebSocket(null);
+    }
+  };
+
+  const handleCloseSpeedDemo = () => {
+    setIsSpeedModalOpen(false);
+    setIsSpeedPredictionCached(false);
+    setSpeedCachedPredictions([]);
+    if (speedWebSocket) {
+      speedWebSocket.close();
+      setSpeedWebSocket(null);
     }
   };
 
@@ -177,11 +239,12 @@ export default function DataPage() {
           randomVideoBlob={randomVideoBlob}
           randomImageBlobs={randomImageBlobs}
           onSteeringDemo={handleSteeringDemo}
+          onSpeedDemo={handleSpeedDemo}
         />
 
         <SteeringDemoModal
           isOpen={isDemoModalOpen}
-          onClose={handleCloseDemo}
+          onClose={handleCloseSteeringDemo}
           mediaUrl={
             selectedVideoBlob || 
             randomVideoBlob || 
@@ -192,6 +255,22 @@ export default function DataPage() {
           steeringAngle={demoSteeringAngle}
           isVideo={Boolean(selectedVideoBlob || randomVideoBlob)}
           websocket={demoWebSocket}
+          isPredictionCached={isSteeringPredictionCached}
+          cachedPredictions={steeringCachedPredictions}
+        />
+
+        <SpeedDemoModal
+          isOpen={isSpeedModalOpen}
+          onClose={handleCloseSpeedDemo}
+          mediaUrl={
+            selectedVideoBlob || 
+            randomVideoBlob || 
+            selectedImageBlob || 
+            (randomImageBlobs.length > 0 ? randomImageBlobs[0] : null)
+          }
+          mediaId={currentMediaId}
+          isVideo={Boolean(selectedVideoBlob || randomVideoBlob)}
+          websocket={speedWebSocket}
         />
       </main>
 

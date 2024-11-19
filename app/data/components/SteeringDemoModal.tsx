@@ -11,6 +11,8 @@ interface SteeringDemoModalProps {
   steeringAngle: number;
   isVideo: boolean;
   websocket: WebSocket | null;
+  isPredictionCached?: boolean;
+  cachedPredictions?: TelemetryData[];
 }
 
 interface SteeringWheelProps {
@@ -49,13 +51,13 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
   mediaId,
   steeringAngle,
   isVideo,
-  websocket
+  websocket,
+  isPredictionCached = false,
+  cachedPredictions = []
 }) => {
   const [predictedAngle, setPredictedAngle] = useState(0);
   const [groundTruthAngle, setGroundTruthAngle] = useState(0);
   const [status, setStatus] = useState<'analyzing' | 'streaming' | 'complete' | 'error'>('analyzing');
-  const [cachedPredictions, setCachedPredictions] = useState<TelemetryData[]>([]);
-  const [isPredictionCached, setIsPredictionCached] = useState(false);
 
   useEffect(() => {
     if (isVideo && mediaId) {
@@ -76,16 +78,10 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
       const data = await response.json();
       
       if (data.cached) {
-        setIsPredictionCached(true);
-        setCachedPredictions(data.predictions);
         setStatus('complete');
-      } else {
-        setIsPredictionCached(false);
-        setCachedPredictions([]);
       }
     } catch (error) {
       console.error('Error checking predictions cache:', error);
-      setIsPredictionCached(false);
     }
   };
 
@@ -97,8 +93,6 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
     setPredictedAngle(predicted);
     setGroundTruthAngle(groundTruth);
   };
-  console.log('Predicted Angle:', predictedAngle);
-  console.log('Ground Truth Angle:', groundTruthAngle);
 
   if (!mediaUrl) return null;
 
@@ -127,6 +121,7 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
                 isPredictionCached={isPredictionCached}
                 cachedPredictions={cachedPredictions}
                 onAnglesUpdate={handleAnglesUpdate}
+                type="steering"
               />
             ) : (
               <div className="relative rounded-lg overflow-hidden bg-black">
@@ -178,19 +173,6 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
                 </span>
               </div>
             </div>
-
-            {/* Processing Info */}
-            {isVideo && (
-              <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold mb-2">Processing Info</h3>
-                <div className="space-y-2">
-                  <p>Source: {isPredictionCached ? 'Cache' : 'Real-time'}</p>
-                  {status === 'streaming' && !isPredictionCached && (
-                    <p>Processing frames in real-time...</p>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
