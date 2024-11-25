@@ -28,9 +28,9 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
   const [isFirstFrameProcessed, setIsFirstFrameProcessed] = useState<boolean>(false);
   const [predictions, setPredictions] = useState<Prediction[]>(
     cachedPredictions.map(pred => ({
-      predictedAngle: pred.angle,
-      groundTruthAngle: pred.ground_truth_angle || 0,
-      timestamp: pred.timestamp
+      predictedAngle: Number(pred.angle) || 0,
+      groundTruthAngle: Number(pred.ground_truth_angle) || 0,
+      timestamp: Number(pred.timestamp) || 0
     }))
   );
   const [currentPredictionIndex, setCurrentPredictionIndex] = useState<number>(0);
@@ -39,9 +39,9 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
   useEffect(() => {
     if (isPredictionCached && cachedPredictions.length > 0) {
       setPredictions(cachedPredictions.map(pred => ({
-        predictedAngle: pred.angle,
-        groundTruthAngle: pred.ground_truth_angle || 0,
-        timestamp: pred.timestamp
+        predictedAngle: Number(pred.angle) || 0,
+        groundTruthAngle: Number(pred.ground_truth_angle) || 0,
+        timestamp: Number(pred.timestamp) || 0
       })));
       setIsFirstFrameProcessed(true);
     } else if (websocket) {
@@ -60,9 +60,9 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
         
         if (data.status === 'streaming') {
           setPredictions(prev => [...prev, {
-            predictedAngle: data.predicted_angle,
-            groundTruthAngle: data.ground_truth_angle,
-            timestamp: data.timestamp
+            predictedAngle: Number(data.predicted_angle) || 0,
+            groundTruthAngle: Number(data.ground_truth_angle) || 0,
+            timestamp: Number(data.timestamp) || 0
           }]);
         }
       };
@@ -92,10 +92,10 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
       
       if (newIndex !== -1) {
         setCurrentPredictionIndex(newIndex);
-        const currentPrediction = predictions[newIndex];
+        const pred = predictions[newIndex];
         onAnglesUpdate(
-          currentPrediction.predictedAngle,
-          currentPrediction.groundTruthAngle
+          Number(pred.predictedAngle) || 0,
+          Number(pred.groundTruthAngle) || 0
         );
       }
     };
@@ -104,9 +104,9 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
       setIsPlaying(false);
       if (onEnd) {
         onEnd(predictions.map(pred => ({
-          angle: pred.predictedAngle,
-          ground_truth_angle: pred.groundTruthAngle,
-          timestamp: pred.timestamp
+          angle: Number(pred.predictedAngle) || 0,
+          ground_truth_angle: Number(pred.groundTruthAngle) || 0,
+          timestamp: Number(pred.timestamp) || 0
         })));
       }
     };
@@ -132,7 +132,11 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
     }
   };
 
-  const currentPrediction = predictions[currentPredictionIndex];
+  // Ensure we have valid numbers for display
+  const defaultPrediction = { predictedAngle: 0, groundTruthAngle: 0 };
+  const currentPrediction = predictions[currentPredictionIndex] || defaultPrediction;
+  const displayPredictedAngle = Number(currentPrediction.predictedAngle) || 0;
+  const displayGroundTruthAngle = Number(currentPrediction.groundTruthAngle) || 0;
 
   return (
     <div className="relative rounded-lg overflow-hidden bg-black">
@@ -161,8 +165,8 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
         </button>
         
         <div className="text-white space-x-4">
-          <span>Predicted: {currentPrediction?.predictedAngle.toFixed(1)}°</span>
-          <span>Ground Truth: {currentPrediction?.groundTruthAngle.toFixed(1)}°</span>
+          <span>Predicted: {displayPredictedAngle.toFixed(1)}°</span>
+          <span>Ground Truth: {displayGroundTruthAngle.toFixed(1)}°</span>
         </div>
       </div>
     </div>

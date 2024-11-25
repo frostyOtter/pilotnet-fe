@@ -97,3 +97,8 @@ export interface WebSocketMessage {
   timestamp?: number;
   message?: string;
 }
+
+export interface CacheCheckResponse {
+  cached: boolean;
+  predictions?: TelemetryData[];
+}
