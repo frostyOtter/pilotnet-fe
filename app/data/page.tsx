@@ -1,4 +1,3 @@
-// page.tsx
 'use client';
 
 import React, { useEffect } from 'react';
@@ -8,10 +7,11 @@ import Footer from '@/app/components/Footer';
 import { MediaControlPanel } from './components/MediaControlPanel';
 import { MediaDisplay } from './components/MediaDisplay';
 import SteeringDemoModal from './components/SteeringDemoModal';
+import SpeedDemoModal from './components/SpeedDemoModal';
 import { useMediaState } from './hooks/useMediaState';
 import { useDemoState } from './hooks/useDemoState';
 import * as api from './utils/api';
-import { SteeringDemoResponse } from './types';
+import { SpeedPredictionData } from './types';
 
 export default function DataPage() {
   const {
@@ -32,6 +32,7 @@ export default function DataPage() {
   } = useMediaState();
 
   const {
+    // Steering demo state
     isDemoModalOpen,
     setIsDemoModalOpen,
     demoSteeringAngle,
@@ -43,7 +44,17 @@ export default function DataPage() {
     cachedPredictions,
     setCachedPredictions,
     isPredictionCached,
-    setIsPredictionCached
+    setIsPredictionCached,
+    // Speed demo state
+    isSpeedDemoModalOpen,
+    setIsSpeedDemoModalOpen,
+    speedDemoWebSocket,
+    setSpeedDemoWebSocket,
+    isStreamingSpeedDemo,
+    setIsStreamingSpeedDemo,
+    currentSpeedPrediction,
+    setCurrentSpeedPrediction,
+    cleanupSpeedDemo,
   } = useDemoState();
 
   useEffect(() => {
@@ -51,6 +62,9 @@ export default function DataPage() {
     return () => {
       if (demoWebSocket) {
         demoWebSocket.close();
+      }
+      if (speedDemoWebSocket) {
+        speedDemoWebSocket.close();
       }
     };
   }, []);
@@ -116,7 +130,7 @@ export default function DataPage() {
       setIsStreamingDemo(true);
 
       const isVideo = Boolean(selectedVideoBlob || randomVideoBlob);
-      const result: SteeringDemoResponse = await api.startSteeringDemo(currentMediaId, isVideo);
+      const result = await api.startSteeringDemo(currentMediaId, isVideo);
 
       if (isVideo) {
         if (result.cached && result.predictions) {
@@ -127,27 +141,53 @@ export default function DataPage() {
         } else {
           // Handle real-time processing
           setIsPredictionCached(false);
-          setCachedPredictions([]); // Initialize with empty array instead of null
+          setCachedPredictions([]);
           setDemoWebSocket(result.ws);
         }
       } else {
         // Handle image predictions
         if (result.predictions && result.predictions.length > 0) {
-          setDemoSteeringAngle(result.predictions[0].angle);
+          // Ensure angle has a default value of 0 if undefined
+          const angle = result.predictions[0].angle ?? 0;
+          setDemoSteeringAngle(angle);
         }
       }
     } catch (error) {
       console.error('Error in steering demo:', error);
       alert('Error running steering demo');
-      handleCloseDemo();
+      handleCloseSteeringDemo();
     }
   };
 
-  const handleCloseDemo = () => {
+  const handleSpeedDemo = async () => {
+    if (!currentMediaId) return;
+
+    try {
+      const isVideo = Boolean(selectedVideoBlob || randomVideoBlob);
+      
+      if (!isVideo) {
+        alert('Speed demo is only available for videos');
+        return;
+      }
+
+      setIsSpeedDemoModalOpen(true);
+      setIsStreamingSpeedDemo(true);
+
+      const result = await api.startSpeedDemo(currentMediaId, isVideo);
+      setSpeedDemoWebSocket(result.ws);
+      
+    } catch (error) {
+      console.error('Error in speed demo:', error);
+      alert('Error running speed demo');
+      cleanupSpeedDemo();
+    }
+  };
+
+  const handleCloseSteeringDemo = () => {
     setIsDemoModalOpen(false);
     setIsStreamingDemo(false);
     setIsPredictionCached(false);
-    setCachedPredictions([]); // Always initialize with empty array
+    setCachedPredictions([]);
     if (demoWebSocket) {
       demoWebSocket.close();
       setDemoWebSocket(null);
@@ -177,11 +217,12 @@ export default function DataPage() {
           randomVideoBlob={randomVideoBlob}
           randomImageBlobs={randomImageBlobs}
           onSteeringDemo={handleSteeringDemo}
+          onSpeedDemo={handleSpeedDemo}
         />
 
         <SteeringDemoModal
           isOpen={isDemoModalOpen}
-          onClose={handleCloseDemo}
+          onClose={handleCloseSteeringDemo}
           mediaUrl={
             selectedVideoBlob || 
             randomVideoBlob || 
@@ -192,6 +233,18 @@ export default function DataPage() {
           steeringAngle={demoSteeringAngle}
           isVideo={Boolean(selectedVideoBlob || randomVideoBlob)}
           websocket={demoWebSocket}
+          isPredictionCached={isPredictionCached}
+          cachedPredictions={cachedPredictions}
+        />
+
+        <SpeedDemoModal
+          isOpen={isSpeedDemoModalOpen}
+          onClose={cleanupSpeedDemo}
+          mediaUrl={selectedVideoBlob || randomVideoBlob}
+          mediaId={currentMediaId}
+          websocket={speedDemoWebSocket}
+          currentPrediction={currentSpeedPrediction}
+          setCurrentPrediction={setCurrentSpeedPrediction}
         />
       </main>
 

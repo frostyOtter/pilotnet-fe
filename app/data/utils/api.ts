@@ -1,6 +1,5 @@
 // utils/api.ts
-import { CacheCheckResponse, SteeringDemoResponse, TelemetryData } from '../types';
-
+import { CacheCheckResponse, SteeringDemoResponse, TelemetryData, SpeedDemoResponse, SpeedPredictionData } from '../types';
 export const fetchAvailableMedia = async () => {
   try {
     const response = await fetch('/api/py/data/available-media');
@@ -125,6 +124,85 @@ export const startSteeringDemo = async (
     }
   } catch (error) {
     console.error('Error in steering demo:', error);
+    throw error;
+  }
+};
+
+
+// export const checkSpeedFrames = async (videoId: string) => {
+//   try {
+//     const response = await fetch(`/api/py/demo/check-frames/${videoId}`);
+//     if (!response.ok) {
+//       throw new Error('Failed to check video frames');
+//     }
+//     return await response.json();
+//   } catch (error) {
+//     console.error('Error checking video frames:', error);
+//     throw error;
+//   }
+// };
+
+
+export const startSpeedDemo = async (
+  mediaId: string,
+  isVideo: boolean,
+): Promise<SpeedDemoResponse> => {
+  try {
+    if (!isVideo) {
+      throw new Error('Speed demo is only available for videos');
+    }
+
+    // Create WebSocket connection
+    const ws = new WebSocket(`ws://localhost:8000/api/demo/ws/speed`);
+    
+    // Set up initial connection
+    ws.onopen = () => {
+      ws.send(JSON.stringify({
+        video_id: mediaId,
+      }));
+    };
+
+    return {
+      cached: false,
+      predictions: null,
+      ws
+    };
+
+  } catch (error) {
+    console.error('Error in speed demo:', error);
+    throw error;
+  }
+};
+
+// Function to handle speed prediction for image sequences (if needed)
+export const predictSpeedFromImages = async (files: File[]): Promise<SpeedPredictionData> => {
+  try {
+    const formData = new FormData();
+    files.forEach((file, index) => {
+      formData.append(`files`, file);
+    });
+
+    const response = await fetch('/api/py/demo/predict-speed', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!response.ok) {
+      throw new Error('Failed to predict speed from images');
+    }
+
+    const data = await response.json();
+    return {
+      velocity_kmh: data.velocity_kmh,
+      ground_truth_velocity_kmh: null, // No ground truth for uploaded images
+      confidence_lower_kmh: data.lower_bound_kmh,
+      confidence_upper_kmh: data.upper_bound_kmh,
+      iqr_kmh: data.iqr_kmh,
+      frame_count: files.length,
+      status: 'complete'
+    };
+  } catch (error) {
+    console.error('Error predicting speed from images:', error);
     throw error;
   }
 };

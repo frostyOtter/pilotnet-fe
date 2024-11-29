@@ -1,55 +1,41 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { TelemetryData } from '../types';
+import { TelemetryData, SpeedPredictionData } from '../types';
 
-interface SynchronizedVideoPlayerProps {
+interface SynchronizedVideoPlayerProps<T extends TelemetryData | SpeedPredictionData> {
   videoUrl: string;
   websocket: WebSocket | null;
-  onEnd: (predictions: TelemetryData[]) => void;
-  isPredictionCached: boolean;
-  cachedPredictions?: TelemetryData[];
-  onAnglesUpdate: (predicted: number, groundTruth: number) => void;
+  onEnd?: (predictions: T[]) => void;
+  isPredictionCached?: boolean;
+  cachedPredictions?: T[];
+  demoType: 'steering' | 'speed';
+  onUpdate: (data: T) => void;
 }
 
-interface Prediction {
-  predictedAngle: number;
-  groundTruthAngle: number;
-  timestamp: number;
-}
-
-const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({ 
+const SynchronizedVideoPlayer = <T extends TelemetryData | SpeedPredictionData>({ 
   videoUrl, 
   websocket,
   onEnd,
-  isPredictionCached,
+  isPredictionCached = false,
   cachedPredictions = [],
-  onAnglesUpdate
-}) => {
+  demoType,
+  onUpdate
+}: SynchronizedVideoPlayerProps<T>) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isFirstFrameProcessed, setIsFirstFrameProcessed] = useState<boolean>(false);
-  const [predictions, setPredictions] = useState<Prediction[]>(
-    cachedPredictions.map(pred => ({
-      predictedAngle: Number(pred.angle) || 0,
-      groundTruthAngle: Number(pred.ground_truth_angle) || 0,
-      timestamp: Number(pred.timestamp) || 0
-    }))
-  );
+  const [predictions, setPredictions] = useState<T[]>(cachedPredictions);
   const [currentPredictionIndex, setCurrentPredictionIndex] = useState<number>(0);
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   useEffect(() => {
     if (isPredictionCached && cachedPredictions.length > 0) {
-      setPredictions(cachedPredictions.map(pred => ({
-        predictedAngle: Number(pred.angle) || 0,
-        groundTruthAngle: Number(pred.ground_truth_angle) || 0,
-        timestamp: Number(pred.timestamp) || 0
-      })));
+      setPredictions(cachedPredictions);
       setIsFirstFrameProcessed(true);
     } else if (websocket) {
       websocket.onmessage = (event: MessageEvent) => {
         const data = JSON.parse(event.data);
         
         if (data.status === 'error') {
-          console.error('Steering demo error:', data.message);
+          console.error(`${demoType} demo error:`, data.message);
           return;
         }
 
@@ -59,11 +45,7 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
         }
         
         if (data.status === 'streaming') {
-          setPredictions(prev => [...prev, {
-            predictedAngle: Number(data.predicted_angle) || 0,
-            groundTruthAngle: Number(data.ground_truth_angle) || 0,
-            timestamp: Number(data.timestamp) || 0
-          }]);
+          setPredictions(prev => [...prev, data as T]);
         }
       };
     }
@@ -73,41 +55,46 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
         websocket.close();
       }
     };
-  }, [websocket, isPredictionCached, cachedPredictions]);
+  }, [websocket, isPredictionCached, cachedPredictions, demoType]);
 
   useEffect(() => {
     const video = videoRef.current;
     
     const handleTimeUpdate = () => {
       if (!video) return;
-      
+
       const currentTime = video.currentTime;
-      const newIndex = predictions.findIndex(
-        (pred, idx) => {
-          const nextPred = predictions[idx + 1];
-          return pred.timestamp <= currentTime && 
-                 (!nextPred || nextPred.timestamp > currentTime);
-        }
-      );
-      
-      if (newIndex !== -1) {
-        setCurrentPredictionIndex(newIndex);
-        const pred = predictions[newIndex];
-        onAnglesUpdate(
-          Number(pred.predictedAngle) || 0,
-          Number(pred.groundTruthAngle) || 0
+      let newIndex: number;
+
+      if (demoType === 'speed') {
+        // For speed demo, find prediction based on frame count
+        // Assuming 30fps video and predictions every 3 frames
+        const currentFrame = Math.floor(currentTime * 30);
+        const predictionFrame = Math.floor(currentFrame / 3) * 3;
+        newIndex = predictions.findIndex(pred => 
+          (pred as SpeedPredictionData).frame_count === predictionFrame);
+      } else {
+        // For steering demo, find prediction based on timestamp
+        newIndex = predictions.findIndex(
+          (pred, idx) => {
+            const nextPred = predictions[idx + 1];
+            const timestamp = (pred as TelemetryData).timestamp;
+            const nextTimestamp = nextPred ? (nextPred as TelemetryData).timestamp : Infinity;
+            return timestamp <= currentTime && nextTimestamp > currentTime;
+          }
         );
+      }
+      
+      if (newIndex !== -1 && newIndex !== currentPredictionIndex) {
+        setCurrentPredictionIndex(newIndex);
+        onUpdate(predictions[newIndex]);
       }
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
       if (onEnd) {
-        onEnd(predictions.map(pred => ({
-          angle: Number(pred.predictedAngle) || 0,
-          ground_truth_angle: Number(pred.groundTruthAngle) || 0,
-          timestamp: Number(pred.timestamp) || 0
-        })));
+        onEnd(predictions);
       }
     };
 
@@ -118,7 +105,7 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
       video?.removeEventListener('timeupdate', handleTimeUpdate);
       video?.removeEventListener('ended', handleEnded);
     };
-  }, [predictions, onEnd, onAnglesUpdate]);
+  }, [predictions, currentPredictionIndex, onEnd, onUpdate, demoType]);
 
   const handlePlayPause = () => {
     if (!isFirstFrameProcessed) return;
@@ -132,12 +119,6 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
     }
   };
 
-  // Ensure we have valid numbers for display
-  const defaultPrediction = { predictedAngle: 0, groundTruthAngle: 0 };
-  const currentPrediction = predictions[currentPredictionIndex] || defaultPrediction;
-  const displayPredictedAngle = Number(currentPrediction.predictedAngle) || 0;
-  const displayGroundTruthAngle = Number(currentPrediction.groundTruthAngle) || 0;
-
   return (
     <div className="relative rounded-lg overflow-hidden bg-black">
       <video 
@@ -147,7 +128,8 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
         controls={false}
       />
       
-      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-black bg-opacity-50 p-2 rounded">
+      {/* <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-black bg-opacity-50 p-2 rounded"> */}
+      <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
         <button
           onClick={handlePlayPause}
           disabled={!isFirstFrameProcessed}
@@ -155,7 +137,7 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
             isFirstFrameProcessed 
               ? 'bg-blue-500 hover:bg-blue-600' 
               : 'bg-gray-500 cursor-not-allowed'
-          } text-white`}
+          } text-white transition-colors`}
         >
           {!isFirstFrameProcessed 
             ? 'Processing...' 
@@ -163,11 +145,6 @@ const SynchronizedVideoPlayer: React.FC<SynchronizedVideoPlayerProps> = ({
               ? 'Pause' 
               : 'Play'}
         </button>
-        
-        <div className="text-white space-x-4">
-          <span>Predicted: {displayPredictedAngle.toFixed(1)}°</span>
-          <span>Ground Truth: {displayGroundTruthAngle.toFixed(1)}°</span>
-        </div>
       </div>
     </div>
   );

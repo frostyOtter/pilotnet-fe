@@ -28,6 +28,11 @@ export interface DemoState {
   demoWebSocket: WebSocket | null;
   cachedPredictions: TelemetryData[];
   isPredictionCached: boolean;
+  // New speed demo state
+  isSpeedDemoModalOpen: boolean;
+  speedDemoWebSocket: WebSocket | null;
+  isStreamingSpeedDemo: boolean;
+  currentSpeedPrediction: SpeedPredictionData | null;
 }
 
 export interface SteeringDemoResponse {
@@ -78,27 +83,49 @@ export interface SynchronizedVideoPlayerProps {
 }
 
 export interface TelemetryData {
-  angle: number;
-  ground_truth_angle?: number;  // Added ground truth angle
+  predicted_angle?: number;  // From WebSocket for steering
+  ground_truth_angle?: number;  // From WebSocket for steering
+  angle?: number;  // From cached predictions
   timestamp: number;
   status?: 'analyzing' | 'streaming' | 'complete' | 'error';
-}
-
-export interface SteeringDemoResponse {
-  cached: boolean;
-  predictions: TelemetryData[] | null;
-  ws: WebSocket | null;
-}
-
-export interface WebSocketMessage {
-  status: 'streaming' | 'complete' | 'error';
-  predicted_angle?: number;
-  ground_truth_angle?: number;
-  timestamp?: number;
   message?: string;
 }
+// export interface TelemetryData {
+//   angle: number;
+//   ground_truth_angle?: number;  // Added ground truth angle
+//   timestamp: number;
+//   status?: 'analyzing' | 'streaming' | 'complete' | 'error';
+// }
 
 export interface CacheCheckResponse {
   cached: boolean;
   predictions?: TelemetryData[];
+}
+
+export interface SpeedPredictionData {
+  velocity_kmh: number;
+  ground_truth_velocity_kmh: number | null;
+  confidence_lower_kmh: number;
+  confidence_upper_kmh: number;
+  iqr_kmh: number;
+  frame_count: number;
+  status?: 'streaming' | 'complete' | 'error';
+  message?: string;
+}
+
+export interface SpeedDemoResponse {
+  cached: boolean;
+  predictions: SpeedPredictionData[] | null;
+  ws: WebSocket | null;
+}
+
+export interface SpeedWebSocketMessage {
+  status: 'streaming' | 'complete' | 'error';
+  velocity_kmh?: number;
+  ground_truth_velocity_kmh?: number | null;
+  confidence_lower_kmh?: number;
+  confidence_upper_kmh?: number;
+  iqr_kmh?: number;
+  frame_count?: number;
+  message?: string;
 }

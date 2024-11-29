@@ -11,6 +11,8 @@ interface SteeringDemoModalProps {
   steeringAngle: number;
   isVideo: boolean;
   websocket: WebSocket | null;
+  isPredictionCached?: boolean;
+  cachedPredictions?: TelemetryData[];
 }
 
 interface SteeringWheelProps {
@@ -49,19 +51,14 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
   mediaId,
   steeringAngle,
   isVideo,
-  websocket
+  websocket,
+  isPredictionCached = false,
+  cachedPredictions = []
 }) => {
+  const [status, setStatus] = useState<'analyzing' | 'streaming' | 'complete' | 'error'>('analyzing');
   const [predictedAngle, setPredictedAngle] = useState(0);
   const [groundTruthAngle, setGroundTruthAngle] = useState(0);
-  const [status, setStatus] = useState<'analyzing' | 'streaming' | 'complete' | 'error'>('analyzing');
-  const [cachedPredictions, setCachedPredictions] = useState<TelemetryData[]>([]);
-  const [isPredictionCached, setIsPredictionCached] = useState(false);
-
-  useEffect(() => {
-    if (isVideo && mediaId) {
-      checkPredictionsCache();
-    }
-  }, [mediaId, isVideo]);
+  const [currentPrediction, setCurrentPrediction] = useState<TelemetryData | null>(null);
 
   useEffect(() => {
     if (!isVideo) {
@@ -70,40 +67,22 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
     }
   }, [isVideo, steeringAngle]);
 
-  const checkPredictionsCache = async () => {
-    try {
-      const response = await fetch(`/api/py/demo/check-cache/${mediaId}`);
-      const data = await response.json();
-      
-      if (data.cached) {
-        setIsPredictionCached(true);
-        setCachedPredictions(data.predictions);
-        setStatus('complete');
-      } else {
-        setIsPredictionCached(false);
-        setCachedPredictions([]);
-      }
-    } catch (error) {
-      console.error('Error checking predictions cache:', error);
-      setIsPredictionCached(false);
-    }
+  const handlePredictionUpdate = (prediction: TelemetryData) => {
+    setCurrentPrediction(prediction);
+    // Handle both WebSocket and cached prediction formats
+    setPredictedAngle(Number(prediction.predicted_angle || prediction.angle) || 0);
+    setGroundTruthAngle(Number(prediction.ground_truth_angle) || 0);
+    setStatus(prediction.status || 'streaming');
   };
 
   const handleVideoEnd = (predictions: TelemetryData[]) => {
     setStatus('complete');
   };
 
-  const handleAnglesUpdate = (predicted: number, groundTruth: number) => {
-    setPredictedAngle(predicted);
-    setGroundTruthAngle(groundTruth);
-  };
-  console.log('Predicted Angle:', predictedAngle);
-  console.log('Ground Truth Angle:', groundTruthAngle);
-
-  if (!mediaUrl) return null;
+  if (!mediaUrl || !isOpen) return null;
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center ${isOpen ? 'visible' : 'hidden'}`}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div className="fixed inset-0 bg-black opacity-50" onClick={onClose}></div>
       
       <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 max-w-7xl w-full mx-4">
@@ -120,13 +99,14 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
           {/* Media Display */}
           <div>
             {isVideo ? (
-              <SynchronizedVideoPlayer
+                <SynchronizedVideoPlayer<TelemetryData>
                 videoUrl={mediaUrl}
                 websocket={websocket}
                 onEnd={handleVideoEnd}
                 isPredictionCached={isPredictionCached}
                 cachedPredictions={cachedPredictions}
-                onAnglesUpdate={handleAnglesUpdate}
+                demoType="steering"
+                onUpdate={handlePredictionUpdate}
               />
             ) : (
               <div className="relative rounded-lg overflow-hidden bg-black">
@@ -151,7 +131,7 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
             <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
               <h3 className="text-lg font-semibold mb-2">Analysis</h3>
               <div className="space-y-2">
-                <p>Angle Difference: {Math.abs(predictedAngle - groundTruthAngle).toFixed(1)}°</p>
+                <p>Error: {Math.abs(predictedAngle - groundTruthAngle).toFixed(1)}°</p>
                 <div className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded">
                   <div 
                     className="h-full bg-blue-500 rounded transition-all duration-300"
@@ -177,6 +157,9 @@ export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
                   {isPredictionCached ? 'Using cached predictions' : status}
                 </span>
               </div>
+              {currentPrediction?.timestamp && (
+                <p className="mt-2">Time: {currentPrediction.timestamp.toFixed(2)}s</p>
+              )}
             </div>
 
             {/* Processing Info */}
