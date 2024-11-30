@@ -1,59 +1,29 @@
-export interface MediaState {
-  availableMedia: {
-    videos: string[];
-    images: string[];
-    video_count: number;
-    image_count: number;
-  };
-  randomVideoBlob: string | null;
-  randomImageBlobs: string[];
-  mediaId: string;
-  selectedVideoBlob: string | null;
-  selectedImageBlob: string | null;
-  currentMediaId: string | null;
+// Basic Media Types
+export interface MediaCounts {
+  video_count: number;
+  image_count: number;
 }
 
-export interface ApiResponse {
+export interface AvailableMedia extends MediaCounts {
+  videos: string[];
+  images: string[];
+}
+
+// API Response Types
+export interface SingleMediaResponse {
   url: string;
   mediaId?: string;
   filename?: string;
-  paths?: string[];
-  blobs?: string[];
 }
 
-export interface DemoState {
-  isDemoModalOpen: boolean;
-  demoSteeringAngle: number;
-  isStreamingDemo: boolean;
-  demoWebSocket: WebSocket | null;
-  cachedPredictions: TelemetryData[];
-  isPredictionCached: boolean;
-  // New speed demo state
-  isSpeedDemoModalOpen: boolean;
-  speedDemoWebSocket: WebSocket | null;
-  isStreamingSpeedDemo: boolean;
-  currentSpeedPrediction: SpeedPredictionData | null;
+export interface MultipleImagesResponse {
+  paths: string[];
+  blobs: string[];
 }
 
-export interface SteeringDemoResponse {
-  cached: boolean;
-  predictions: TelemetryData[] | null;
-  ws: WebSocket | null;
-}
-
-export interface SteeringDemoResult {
-  status: string;
-  results: {
-    steering_angle: number;
-    [key: string]: any;
-  };
-}
-
+// Component Props Types
 export interface MediaControlPanelProps {
-  availableMedia: {
-    video_count: number;
-    image_count: number;
-  };
+  availableMedia: MediaCounts;
   onGetRandomVideo: () => void;
   onGetRandomImages: () => void;
   mediaId: string;
@@ -68,38 +38,15 @@ export interface MediaDisplayProps {
   randomVideoBlob: string | null;
   randomImageBlobs: string[];
   onSteeringDemo: () => void;
+  onSpeedDemo: () => void;
 }
 
-export interface SteeringDemoButtonProps {
-  onClick: () => void;
-}
-
-export interface SynchronizedVideoPlayerProps {
-  videoUrl: string;
-  websocket: WebSocket | null;
-  onEnd: (predictions: TelemetryData[]) => void;
-  isPredictionCached: boolean;
-  cachedPredictions?: TelemetryData[];
-}
-
+// Demo Types
 export interface TelemetryData {
-  predicted_angle?: number;  // From WebSocket for steering
-  ground_truth_angle?: number;  // From WebSocket for steering
-  angle?: number;  // From cached predictions
+  predicted_angle?: number;
+  ground_truth_angle?: number;
+  angle?: number;
   timestamp: number;
-  status?: 'analyzing' | 'streaming' | 'complete' | 'error';
-  message?: string;
-}
-// export interface TelemetryData {
-//   angle: number;
-//   ground_truth_angle?: number;  // Added ground truth angle
-//   timestamp: number;
-//   status?: 'analyzing' | 'streaming' | 'complete' | 'error';
-// }
-
-export interface CacheCheckResponse {
-  cached: boolean;
-  predictions?: TelemetryData[];
 }
 
 export interface SpeedPredictionData {
@@ -109,23 +56,4 @@ export interface SpeedPredictionData {
   confidence_upper_kmh: number;
   iqr_kmh: number;
   frame_count: number;
-  status?: 'streaming' | 'complete' | 'error';
-  message?: string;
-}
-
-export interface SpeedDemoResponse {
-  cached: boolean;
-  predictions: SpeedPredictionData[] | null;
-  ws: WebSocket | null;
-}
-
-export interface SpeedWebSocketMessage {
-  status: 'streaming' | 'complete' | 'error';
-  velocity_kmh?: number;
-  ground_truth_velocity_kmh?: number | null;
-  confidence_lower_kmh?: number;
-  confidence_upper_kmh?: number;
-  iqr_kmh?: number;
-  frame_count?: number;
-  message?: string;
 }

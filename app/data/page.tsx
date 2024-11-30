@@ -11,7 +11,6 @@ import SpeedDemoModal from './components/SpeedDemoModal';
 import { useMediaState } from './hooks/useMediaState';
 import { useDemoState } from './hooks/useDemoState';
 import * as api from './utils/api';
-import { SpeedPredictionData } from './types';
 
 export default function DataPage() {
   const {
@@ -32,58 +31,37 @@ export default function DataPage() {
   } = useMediaState();
 
   const {
-    // Steering demo state
     isDemoModalOpen,
     setIsDemoModalOpen,
-    demoSteeringAngle,
-    setDemoSteeringAngle,
-    isStreamingDemo,
-    setIsStreamingDemo,
     demoWebSocket,
     setDemoWebSocket,
-    cachedPredictions,
-    setCachedPredictions,
-    isPredictionCached,
-    setIsPredictionCached,
-    // Speed demo state
     isSpeedDemoModalOpen,
     setIsSpeedDemoModalOpen,
     speedDemoWebSocket,
     setSpeedDemoWebSocket,
-    isStreamingSpeedDemo,
-    setIsStreamingSpeedDemo,
     currentSpeedPrediction,
     setCurrentSpeedPrediction,
     cleanupSpeedDemo,
   } = useDemoState();
 
+  // Fetch available media on mount
   useEffect(() => {
-    fetchAvailableMedia();
+    api.fetchAvailableMedia()
+      .then(setAvailableMedia)
+      .catch(console.error);
+
     return () => {
-      if (demoWebSocket) {
-        demoWebSocket.close();
-      }
-      if (speedDemoWebSocket) {
-        speedDemoWebSocket.close();
-      }
+      demoWebSocket?.close();
+      speedDemoWebSocket?.close();
     };
   }, []);
-
-  const fetchAvailableMedia = async () => {
-    try {
-      const data = await api.fetchAvailableMedia();
-      setAvailableMedia(data);
-    } catch (error) {
-      console.error('Error fetching media data:', error);
-    }
-  };
 
   const handleGetRandomVideo = async () => {
     try {
       const { url, filename } = await api.fetchRandomVideo();
       setRandomVideoBlob(url);
       setSelectedVideoBlob(null);
-      setCurrentMediaId(filename);
+      setCurrentMediaId(filename ?? null);
     } catch (error) {
       console.error('Error fetching random video:', error);
     }
@@ -100,25 +78,19 @@ export default function DataPage() {
     }
   };
 
-  const handleGetVideoById = async () => {
+  const handleGetMediaById = async (type: 'video' | 'image') => {
     try {
-      const { url } = await api.fetchMediaById(mediaId, 'video');
-      setSelectedVideoBlob(url);
-      setRandomVideoBlob(null);
+      const { url } = await api.fetchMediaById(mediaId, type);
+      if (type === 'video') {
+        setSelectedVideoBlob(url);
+        setRandomVideoBlob(null);
+      } else {
+        setSelectedImageBlob(url);
+        setRandomImageBlobs([]);
+      }
       setCurrentMediaId(mediaId);
     } catch (error) {
-      console.error('Error fetching video by ID:', error);
-    }
-  };
-
-  const handleGetImageById = async () => {
-    try {
-      const { url } = await api.fetchMediaById(mediaId, 'image');
-      setSelectedImageBlob(url);
-      setRandomImageBlobs([]);
-      setCurrentMediaId(mediaId);
-    } catch (error) {
-      console.error('Error fetching image by ID:', error);
+      console.error(`Error fetching ${type} by ID:`, error);
     }
   };
 
@@ -126,36 +98,13 @@ export default function DataPage() {
     if (!currentMediaId) return;
 
     try {
-      setIsDemoModalOpen(true);
-      setIsStreamingDemo(true);
-
       const isVideo = Boolean(selectedVideoBlob || randomVideoBlob);
+      setIsDemoModalOpen(true);
       const result = await api.startSteeringDemo(currentMediaId, isVideo);
-
-      if (isVideo) {
-        if (result.cached && result.predictions) {
-          // Handle cached predictions
-          setCachedPredictions(result.predictions);
-          setIsPredictionCached(true);
-          setDemoWebSocket(null);
-        } else {
-          // Handle real-time processing
-          setIsPredictionCached(false);
-          setCachedPredictions([]);
-          setDemoWebSocket(result.ws);
-        }
-      } else {
-        // Handle image predictions
-        if (result.predictions && result.predictions.length > 0) {
-          // Ensure angle has a default value of 0 if undefined
-          const angle = result.predictions[0].angle ?? 0;
-          setDemoSteeringAngle(angle);
-        }
-      }
+      setDemoWebSocket(result.ws);
     } catch (error) {
       console.error('Error in steering demo:', error);
-      alert('Error running steering demo');
-      handleCloseSteeringDemo();
+      setIsDemoModalOpen(false);
     }
   };
 
@@ -164,30 +113,22 @@ export default function DataPage() {
 
     try {
       const isVideo = Boolean(selectedVideoBlob || randomVideoBlob);
-      
       if (!isVideo) {
         alert('Speed demo is only available for videos');
         return;
       }
 
       setIsSpeedDemoModalOpen(true);
-      setIsStreamingSpeedDemo(true);
-
       const result = await api.startSpeedDemo(currentMediaId, isVideo);
       setSpeedDemoWebSocket(result.ws);
-      
     } catch (error) {
       console.error('Error in speed demo:', error);
-      alert('Error running speed demo');
       cleanupSpeedDemo();
     }
   };
 
   const handleCloseSteeringDemo = () => {
     setIsDemoModalOpen(false);
-    setIsStreamingDemo(false);
-    setIsPredictionCached(false);
-    setCachedPredictions([]);
     if (demoWebSocket) {
       demoWebSocket.close();
       setDemoWebSocket(null);
@@ -207,8 +148,8 @@ export default function DataPage() {
           onGetRandomImages={handleGetRandomImages}
           mediaId={mediaId}
           onMediaIdChange={setMediaId}
-          onGetVideoById={handleGetVideoById}
-          onGetImageById={handleGetImageById}
+          onGetVideoById={() => handleGetMediaById('video')}
+          onGetImageById={() => handleGetMediaById('image')}
         />
 
         <MediaDisplay
@@ -223,18 +164,10 @@ export default function DataPage() {
         <SteeringDemoModal
           isOpen={isDemoModalOpen}
           onClose={handleCloseSteeringDemo}
-          mediaUrl={
-            selectedVideoBlob || 
-            randomVideoBlob || 
-            selectedImageBlob || 
-            (randomImageBlobs.length > 0 ? randomImageBlobs[0] : null)
-          }
+          mediaUrl={selectedVideoBlob || randomVideoBlob || selectedImageBlob || randomImageBlobs[0]}
           mediaId={currentMediaId}
-          steeringAngle={demoSteeringAngle}
           isVideo={Boolean(selectedVideoBlob || randomVideoBlob)}
           websocket={demoWebSocket}
-          isPredictionCached={isPredictionCached}
-          cachedPredictions={cachedPredictions}
         />
 
         <SpeedDemoModal

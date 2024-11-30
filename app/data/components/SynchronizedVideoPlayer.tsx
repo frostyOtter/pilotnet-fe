@@ -1,120 +1,103 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TelemetryData, SpeedPredictionData } from '../types';
 
-interface SynchronizedVideoPlayerProps<T extends TelemetryData | SpeedPredictionData> {
+interface SynchronizedVideoPlayerProps {
   videoUrl: string;
   websocket: WebSocket | null;
-  onEnd?: (predictions: T[]) => void;
-  isPredictionCached?: boolean;
-  cachedPredictions?: T[];
   demoType: 'steering' | 'speed';
-  onUpdate: (data: T) => void;
+  onUpdate: (data: TelemetryData | SpeedPredictionData) => void;
 }
 
-const SynchronizedVideoPlayer = <T extends TelemetryData | SpeedPredictionData>({ 
+const SynchronizedVideoPlayer = ({ 
   videoUrl, 
   websocket,
-  onEnd,
-  isPredictionCached = false,
-  cachedPredictions = [],
   demoType,
   onUpdate
-}: SynchronizedVideoPlayerProps<T>) => {
+}: SynchronizedVideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [isFirstFrameProcessed, setIsFirstFrameProcessed] = useState<boolean>(false);
-  const [predictions, setPredictions] = useState<T[]>(cachedPredictions);
-  const [currentPredictionIndex, setCurrentPredictionIndex] = useState<number>(0);
-  const [isPlaying, setIsPlaying] = useState<boolean>(false);
+  const [predictions, setPredictions] = useState<any[]>([]);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [isWsReady, setIsWsReady] = useState(false);
 
   useEffect(() => {
-    if (isPredictionCached && cachedPredictions.length > 0) {
-      setPredictions(cachedPredictions);
-      setIsFirstFrameProcessed(true);
-    } else if (websocket) {
-      websocket.onmessage = (event: MessageEvent) => {
-        const data = JSON.parse(event.data);
-        
-        if (data.status === 'error') {
-          console.error(`${demoType} demo error:`, data.message);
-          return;
-        }
+    if (!websocket) return;
 
-        if (!isFirstFrameProcessed && data.status === 'streaming') {
-          setIsFirstFrameProcessed(true);
-          videoRef.current?.play();
-        }
-        
-        if (data.status === 'streaming') {
-          setPredictions(prev => [...prev, data as T]);
-        }
-      };
-    }
+    websocket.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      
+      if (data.status === 'error') {
+        console.error(`${demoType} demo error:`, data.message);
+        return;
+      }
 
-    return () => {
-      if (websocket) {
-        websocket.close();
+      // Start video once we receive the first streaming data
+      if (!isWsReady && data.status === 'streaming') {
+        setIsWsReady(true);
+        if (!isPlaying && videoRef.current) {
+          videoRef.current.play();
+          setIsPlaying(true);
+        }
+      }
+      
+      if (data.status === 'streaming') {
+        setPredictions(prev => [...prev, data]);
+        onUpdate(data);
       }
     };
-  }, [websocket, isPredictionCached, cachedPredictions, demoType]);
+
+    return () => {
+      websocket.close();
+    };
+  }, [websocket, demoType, isPlaying, isWsReady, onUpdate]);
 
   useEffect(() => {
     const video = videoRef.current;
+    if (!video) return;
     
     const handleTimeUpdate = () => {
-      if (!video) return;
-
       const currentTime = video.currentTime;
-      let newIndex: number;
+      const currentFrame = Math.floor(currentTime * 30); // Assuming 30fps
 
-      if (demoType === 'speed') {
-        // For speed demo, find prediction based on frame count
-        // Assuming 30fps video and predictions every 3 frames
-        const currentFrame = Math.floor(currentTime * 30);
-        const predictionFrame = Math.floor(currentFrame / 3) * 3;
-        newIndex = predictions.findIndex(pred => 
-          (pred as SpeedPredictionData).frame_count === predictionFrame);
-      } else {
-        // For steering demo, find prediction based on timestamp
-        newIndex = predictions.findIndex(
-          (pred, idx) => {
-            const nextPred = predictions[idx + 1];
-            const timestamp = (pred as TelemetryData).timestamp;
-            const nextTimestamp = nextPred ? (nextPred as TelemetryData).timestamp : Infinity;
-            return timestamp <= currentTime && nextTimestamp > currentTime;
-          }
-        );
-      }
-      
-      if (newIndex !== -1 && newIndex !== currentPredictionIndex) {
-        setCurrentPredictionIndex(newIndex);
-        onUpdate(predictions[newIndex]);
+      // Find the matching prediction
+      const matchingPrediction = predictions.find(pred => {
+        if (demoType === 'speed') {
+          // For speed demo, predictions come every 3 frames
+          const predictionFrame = Math.floor(pred.frame_count / 3) * 3;
+          return predictionFrame === Math.floor(currentFrame / 3) * 3;
+        } else {
+          // For steering demo, match by timestamp
+          return pred.timestamp <= currentTime && 
+                 (!predictions[predictions.indexOf(pred) + 1] || 
+                  predictions[predictions.indexOf(pred) + 1].timestamp > currentTime);
+        }
+      });
+
+      if (matchingPrediction) {
+        onUpdate(matchingPrediction);
       }
     };
 
     const handleEnded = () => {
       setIsPlaying(false);
-      if (onEnd) {
-        onEnd(predictions);
-      }
     };
 
-    video?.addEventListener('timeupdate', handleTimeUpdate);
-    video?.addEventListener('ended', handleEnded);
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    video.addEventListener('ended', handleEnded);
     
     return () => {
-      video?.removeEventListener('timeupdate', handleTimeUpdate);
-      video?.removeEventListener('ended', handleEnded);
+      video.removeEventListener('timeupdate', handleTimeUpdate);
+      video.removeEventListener('ended', handleEnded);
     };
-  }, [predictions, currentPredictionIndex, onEnd, onUpdate, demoType]);
+  }, [predictions, onUpdate, demoType]);
 
   const handlePlayPause = () => {
-    if (!isFirstFrameProcessed) return;
+    if (!isWsReady || !videoRef.current) return;
     
-    if (videoRef.current?.paused) {
+    if (videoRef.current.paused) {
       videoRef.current.play();
       setIsPlaying(true);
     } else {
-      videoRef.current?.pause();
+      videoRef.current.pause();
       setIsPlaying(false);
     }
   };
@@ -128,22 +111,21 @@ const SynchronizedVideoPlayer = <T extends TelemetryData | SpeedPredictionData>(
         controls={false}
       />
       
-      {/* <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between bg-black bg-opacity-50 p-2 rounded"> */}
       <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
         <button
           onClick={handlePlayPause}
-          disabled={!isFirstFrameProcessed}
           className={`px-4 py-2 rounded ${
-            isFirstFrameProcessed 
+            isWsReady 
               ? 'bg-blue-500 hover:bg-blue-600' 
               : 'bg-gray-500 cursor-not-allowed'
           } text-white transition-colors`}
         >
-          {!isFirstFrameProcessed 
-            ? 'Processing...' 
+          {!isWsReady 
+            ? 'Initializing...' 
             : isPlaying 
               ? 'Pause' 
-              : 'Play'}
+              : 'Play'
+          }
         </button>
       </div>
     </div>

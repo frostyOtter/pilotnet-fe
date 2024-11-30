@@ -1,29 +1,21 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import SynchronizedVideoPlayer from './SynchronizedVideoPlayer';
-import { TelemetryData } from '../types';
+import { TelemetryData, SpeedPredictionData } from '../types';
 
 interface SteeringDemoModalProps {
   isOpen: boolean;
   onClose: () => void;
   mediaUrl: string | null;
   mediaId: string | null;
-  steeringAngle: number;
   isVideo: boolean;
   websocket: WebSocket | null;
-  isPredictionCached?: boolean;
-  cachedPredictions?: TelemetryData[];
 }
 
-interface SteeringWheelProps {
-  angle: number;
-  label: string;
-}
-
-const SteeringWheel: React.FC<SteeringWheelProps> = ({ angle, label }) => (
+const SteeringWheel = ({ angle, label }: { angle: number; label: string }) => (
   <div className="flex flex-col items-center space-y-2">
     <h3 className="text-lg font-semibold">{label}</h3>
-    <div className="relative w-48 h-48">
+    <div className="relative w-40 h-40">
       <div 
         className="relative w-full h-full transition-transform duration-150 ease-out"
         style={{ transform: `rotate(${angle}deg)` }}
@@ -44,136 +36,73 @@ const SteeringWheel: React.FC<SteeringWheelProps> = ({ angle, label }) => (
   </div>
 );
 
-export const SteeringDemoModal: React.FC<SteeringDemoModalProps> = ({
+const SteeringDemoModal = ({
   isOpen,
   onClose,
   mediaUrl,
-  mediaId,
-  steeringAngle,
   isVideo,
-  websocket,
-  isPredictionCached = false,
-  cachedPredictions = []
-}) => {
-  const [status, setStatus] = useState<'analyzing' | 'streaming' | 'complete' | 'error'>('analyzing');
-  const [predictedAngle, setPredictedAngle] = useState(0);
-  const [groundTruthAngle, setGroundTruthAngle] = useState(0);
-  const [currentPrediction, setCurrentPrediction] = useState<TelemetryData | null>(null);
+  websocket
+}: SteeringDemoModalProps) => {
+  const [predictionData, setPredictionData] = useState<TelemetryData | null>(null);
 
+  // Reset prediction data when modal closes
   useEffect(() => {
-    if (!isVideo) {
-      setPredictedAngle(steeringAngle);
-      setStatus('complete');
+    if (!isOpen) {
+      setPredictionData(null);
     }
-  }, [isVideo, steeringAngle]);
-
-  const handlePredictionUpdate = (prediction: TelemetryData) => {
-    setCurrentPrediction(prediction);
-    // Handle both WebSocket and cached prediction formats
-    setPredictedAngle(Number(prediction.predicted_angle || prediction.angle) || 0);
-    setGroundTruthAngle(Number(prediction.ground_truth_angle) || 0);
-    setStatus(prediction.status || 'streaming');
-  };
-
-  const handleVideoEnd = (predictions: TelemetryData[]) => {
-    setStatus('complete');
-  };
+  }, [isOpen]);
 
   if (!mediaUrl || !isOpen) return null;
 
+  const predictedAngle = predictionData?.predicted_angle || predictionData?.angle || 0;
+  const groundTruthAngle = predictionData?.ground_truth_angle || 0;
+
+  const handlePredictionUpdate = (data: TelemetryData | SpeedPredictionData) => {
+    // Type guard to ensure we only process TelemetryData
+    if ('timestamp' in data) {
+      setPredictionData(data as TelemetryData);
+    }
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black opacity-50" onClick={onClose}></div>
+      <div className="fixed inset-0 bg-black opacity-50" onClick={onClose} />
       
-      <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 max-w-7xl w-full mx-4">
+      <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4">
         <button 
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 dark:hover:text-gray-200"
         >
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div className="flex flex-col space-y-6">
           {/* Media Display */}
-          <div>
+          <div className="flex justify-center">
             {isVideo ? (
-                <SynchronizedVideoPlayer<TelemetryData>
-                videoUrl={mediaUrl}
-                websocket={websocket}
-                onEnd={handleVideoEnd}
-                isPredictionCached={isPredictionCached}
-                cachedPredictions={cachedPredictions}
-                demoType="steering"
-                onUpdate={handlePredictionUpdate}
-              />
-            ) : (
-              <div className="relative rounded-lg overflow-hidden bg-black">
-                <img 
-                  src={mediaUrl} 
-                  alt="Demo media" 
-                  className="w-full h-auto"
+              <div className="w-full max-w-3xl">
+                <SynchronizedVideoPlayer
+                  videoUrl={mediaUrl}
+                  websocket={websocket}
+                  demoType="steering"
+                  onUpdate={handlePredictionUpdate}
                 />
+              </div>
+            ) : (
+              <div className="relative rounded-lg overflow-hidden bg-black max-w-3xl">
+                <img src={mediaUrl} alt="Demo media" className="w-full h-auto" />
               </div>
             )}
           </div>
 
-          {/* Steering Wheels and Telemetry */}
-          <div className="flex flex-col space-y-6">
-            {/* Steering Wheels Comparison */}
-            <div className="grid grid-cols-2 gap-4">
+          {/* Steering Wheels */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg mt-6">
+            <div className="flex justify-center space-x-12 p-6">
               <SteeringWheel angle={predictedAngle} label="Predicted" />
               <SteeringWheel angle={groundTruthAngle} label="Ground Truth" />
             </div>
-
-            {/* Analysis Panel */}
-            <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold mb-2">Analysis</h3>
-              <div className="space-y-2">
-                <p>Error: {Math.abs(predictedAngle - groundTruthAngle).toFixed(1)}°</p>
-                <div className="w-full h-2 bg-gray-200 dark:bg-gray-600 rounded">
-                  <div 
-                    className="h-full bg-blue-500 rounded transition-all duration-300"
-                    style={{ 
-                      width: `${Math.max(0, Math.min(100, 100 - Math.abs(predictedAngle - groundTruthAngle)))}%` 
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Status Panel */}
-            <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-              <h3 className="text-lg font-semibold mb-2">Status</h3>
-              <div className="flex items-center space-x-2">
-                <div className={`w-3 h-3 rounded-full ${
-                  status === 'streaming' ? 'bg-green-500 animate-pulse' :
-                  status === 'complete' ? 'bg-blue-500' :
-                  status === 'error' ? 'bg-red-500' :
-                  'bg-yellow-500'
-                }`} />
-                <span className="capitalize">
-                  {isPredictionCached ? 'Using cached predictions' : status}
-                </span>
-              </div>
-              {currentPrediction?.timestamp && (
-                <p className="mt-2">Time: {currentPrediction.timestamp.toFixed(2)}s</p>
-              )}
-            </div>
-
-            {/* Processing Info */}
-            {isVideo && (
-              <div className="bg-gray-100 dark:bg-gray-700 p-4 rounded-lg">
-                <h3 className="text-lg font-semibold mb-2">Processing Info</h3>
-                <div className="space-y-2">
-                  <p>Source: {isPredictionCached ? 'Cache' : 'Real-time'}</p>
-                  {status === 'streaming' && !isPredictionCached && (
-                    <p>Processing frames in real-time...</p>
-                  )}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>
