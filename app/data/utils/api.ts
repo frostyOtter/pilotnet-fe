@@ -93,12 +93,37 @@ export const startSteeringDemo = async (
       };
     }
 
+    // Create WebSocket with error handling
     const ws = new WebSocket(`ws://localhost:8000/api/demo/ws/steering`);
-    ws.onopen = () => {
-      ws.send(JSON.stringify({ video_id: mediaId }));
-    };
 
-    return { ws, prediction: null };
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error('WebSocket connection timeout'));
+      }, 5000);
+
+      ws.onopen = () => {
+        clearTimeout(timeout);
+        console.log('WebSocket connection established');
+        ws.send(JSON.stringify({ video_id: mediaId }));
+        resolve({ ws, prediction: null });
+      };
+
+      ws.onerror = (error) => {
+        clearTimeout(timeout);
+        console.error('WebSocket error:', error);
+        reject(error);
+      };
+
+      ws.onclose = (event) => {
+        clearTimeout(timeout);
+        console.log('WebSocket closed:', event.code, event.reason);
+        if (event.code !== 1000) {
+          reject(new Error(`WebSocket closed abnormally: ${event.code}`));
+        }
+      };
+    });
+
   } catch (error) {
     console.error('Error in steering demo:', error);
     throw error;

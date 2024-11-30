@@ -1,79 +1,84 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TelemetryData, SpeedPredictionData } from '../types';
 
-interface SynchronizedVideoPlayerProps {
+interface SynchronizedVideoPlayerProps<T extends TelemetryData | SpeedPredictionData> {
   videoUrl: string;
   websocket: WebSocket | null;
   demoType: 'steering' | 'speed';
-  onUpdate: (data: TelemetryData | SpeedPredictionData) => void;
+  onUpdate: (data: T) => void;
 }
 
-const SynchronizedVideoPlayer = ({ 
+const SynchronizedVideoPlayer = <T extends TelemetryData | SpeedPredictionData>({ 
   videoUrl, 
   websocket,
   demoType,
   onUpdate
-}: SynchronizedVideoPlayerProps) => {
+}: SynchronizedVideoPlayerProps<T>) => {
   const videoRef = useRef<HTMLVideoElement>(null);
-  const [predictions, setPredictions] = useState<any[]>([]);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [isWsReady, setIsWsReady] = useState(false);
+  const [isFirstFrameProcessed, setIsFirstFrameProcessed] = useState<boolean>(false);
+  const [predictions, setPredictions] = useState<T[]>([]);
+  const [currentPredictionIndex, setCurrentPredictionIndex] = useState<number>(0);
+  const [isPlaying, setIsPlaying] = useState<boolean>(false);
 
   useEffect(() => {
-    if (!websocket) return;
-
-    websocket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      
-      if (data.status === 'error') {
-        console.error(`${demoType} demo error:`, data.message);
-        return;
-      }
-
-      // Start video once we receive the first streaming data
-      if (!isWsReady && data.status === 'streaming') {
-        setIsWsReady(true);
-        if (!isPlaying && videoRef.current) {
-          videoRef.current.play();
-          setIsPlaying(true);
+    if (websocket) {
+      websocket.onmessage = (event: MessageEvent) => {
+        const data = JSON.parse(event.data);
+        
+        if (data.status === 'error') {
+          console.error(`${demoType} demo error:`, data.message);
+          return;
         }
-      }
-      
-      if (data.status === 'streaming') {
-        setPredictions(prev => [...prev, data]);
-        onUpdate(data);
-      }
-    };
+
+        if (!isFirstFrameProcessed && data.status === 'streaming') {
+          setIsFirstFrameProcessed(true);
+          videoRef.current?.play();
+        }
+        
+        if (data.status === 'streaming') {
+          setPredictions(prev => [...prev, data as T]);
+        }
+      };
+    }
 
     return () => {
-      websocket.close();
+      if (websocket) {
+        websocket.close();
+      }
     };
-  }, [websocket, demoType, isPlaying, isWsReady, onUpdate]);
+  }, [websocket, demoType]);
 
   useEffect(() => {
     const video = videoRef.current;
-    if (!video) return;
     
     const handleTimeUpdate = () => {
+      if (!video) return;
+
       const currentTime = video.currentTime;
-      const currentFrame = Math.floor(currentTime * 30); // Assuming 30fps
+      let newIndex: number;
 
-      // Find the matching prediction
-      const matchingPrediction = predictions.find(pred => {
-        if (demoType === 'speed') {
-          // For speed demo, predictions come every 3 frames
-          const predictionFrame = Math.floor(pred.frame_count / 3) * 3;
-          return predictionFrame === Math.floor(currentFrame / 3) * 3;
-        } else {
-          // For steering demo, match by timestamp
-          return pred.timestamp <= currentTime && 
-                 (!predictions[predictions.indexOf(pred) + 1] || 
-                  predictions[predictions.indexOf(pred) + 1].timestamp > currentTime);
-        }
-      });
-
-      if (matchingPrediction) {
-        onUpdate(matchingPrediction);
+      if (demoType === 'speed') {
+        // For speed demo, find prediction based on frame count
+        // Assuming 30fps video and predictions every 3 frames
+        const currentFrame = Math.floor(currentTime * 30);
+        const predictionFrame = Math.floor(currentFrame / 3) * 3;
+        newIndex = predictions.findIndex(pred => 
+          (pred as SpeedPredictionData).frame_count === predictionFrame);
+      } else {
+        // For steering demo, find prediction based on timestamp
+        newIndex = predictions.findIndex(
+          (pred, idx) => {
+            const nextPred = predictions[idx + 1];
+            const timestamp = (pred as TelemetryData).timestamp;
+            const nextTimestamp = nextPred ? (nextPred as TelemetryData).timestamp : Infinity;
+            return timestamp <= currentTime && nextTimestamp > currentTime;
+          }
+        );
+      }
+      
+      if (newIndex !== -1 && newIndex !== currentPredictionIndex) {
+        setCurrentPredictionIndex(newIndex);
+        onUpdate(predictions[newIndex]);
       }
     };
 
@@ -81,23 +86,23 @@ const SynchronizedVideoPlayer = ({
       setIsPlaying(false);
     };
 
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    video.addEventListener('ended', handleEnded);
+    video?.addEventListener('timeupdate', handleTimeUpdate);
+    video?.addEventListener('ended', handleEnded);
     
     return () => {
-      video.removeEventListener('timeupdate', handleTimeUpdate);
-      video.removeEventListener('ended', handleEnded);
+      video?.removeEventListener('timeupdate', handleTimeUpdate);
+      video?.removeEventListener('ended', handleEnded);
     };
-  }, [predictions, onUpdate, demoType]);
+  }, [predictions, currentPredictionIndex, onUpdate, demoType]);
 
   const handlePlayPause = () => {
-    if (!isWsReady || !videoRef.current) return;
+    if (!isFirstFrameProcessed) return;
     
-    if (videoRef.current.paused) {
+    if (videoRef.current?.paused) {
       videoRef.current.play();
       setIsPlaying(true);
     } else {
-      videoRef.current.pause();
+      videoRef.current?.pause();
       setIsPlaying(false);
     }
   };
@@ -114,18 +119,18 @@ const SynchronizedVideoPlayer = ({
       <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between">
         <button
           onClick={handlePlayPause}
+          disabled={!isFirstFrameProcessed}
           className={`px-4 py-2 rounded ${
-            isWsReady 
+            isFirstFrameProcessed 
               ? 'bg-blue-500 hover:bg-blue-600' 
               : 'bg-gray-500 cursor-not-allowed'
           } text-white transition-colors`}
         >
-          {!isWsReady 
-            ? 'Initializing...' 
+          {!isFirstFrameProcessed 
+            ? 'Processing...' 
             : isPlaying 
               ? 'Pause' 
-              : 'Play'
-          }
+              : 'Play'}
         </button>
       </div>
     </div>

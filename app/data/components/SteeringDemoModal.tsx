@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import Image from 'next/image';
 import SynchronizedVideoPlayer from './SynchronizedVideoPlayer';
-import { TelemetryData, SpeedPredictionData } from '../types';
+import { TelemetryData } from '../types';
 
 interface SteeringDemoModalProps {
   isOpen: boolean;
@@ -45,23 +45,13 @@ const SteeringDemoModal = ({
 }: SteeringDemoModalProps) => {
   const [predictionData, setPredictionData] = useState<TelemetryData | null>(null);
 
-  // Reset prediction data when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setPredictionData(null);
-    }
-  }, [isOpen]);
-
   if (!mediaUrl || !isOpen) return null;
 
   const predictedAngle = predictionData?.predicted_angle || predictionData?.angle || 0;
   const groundTruthAngle = predictionData?.ground_truth_angle || 0;
 
-  const handlePredictionUpdate = (data: TelemetryData | SpeedPredictionData) => {
-    // Type guard to ensure we only process TelemetryData
-    if ('timestamp' in data) {
-      setPredictionData(data as TelemetryData);
-    }
+  const handlePredictionUpdate = (data: TelemetryData) => {
+    setPredictionData(data);
   };
 
   return (
@@ -83,7 +73,7 @@ const SteeringDemoModal = ({
           <div className="flex justify-center">
             {isVideo ? (
               <div className="w-full max-w-3xl">
-                <SynchronizedVideoPlayer
+                <SynchronizedVideoPlayer<TelemetryData>
                   videoUrl={mediaUrl}
                   websocket={websocket}
                   demoType="steering"
