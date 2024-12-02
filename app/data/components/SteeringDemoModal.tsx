@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Image from 'next/image';
 import SynchronizedVideoPlayer from './SynchronizedVideoPlayer';
 import { TelemetryData } from '../types';
@@ -44,6 +44,81 @@ const SteeringDemoModal = ({
   websocket
 }: SteeringDemoModalProps) => {
   const [predictionData, setPredictionData] = useState<TelemetryData | null>(null);
+  // Track WebSocket readiness separately from video player initialization
+  const [isWebSocketReady, setIsWebSocketReady] = useState(false);
+
+  // Reset states when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setPredictionData(null);
+      setIsWebSocketReady(false);
+    }
+  }, [isOpen]);
+
+  // Handle direct WebSocket messages (for both video and image predictions)
+  useEffect(() => {
+    if (!websocket) return;
+
+    const handleWebSocketMessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        if (data.status === 'error') {
+          console.error('Steering demo error:', data.message);
+          onClose();
+          return;
+        }
+
+        // For non-video predictions, update immediately
+        if (!isVideo && data.status === 'streaming') {
+          setPredictionData(data);
+          setIsWebSocketReady(true);
+        }
+
+        // For video predictions, let SynchronizedVideoPlayer handle the updates
+        if (isVideo && data.status === 'streaming') {
+          setIsWebSocketReady(true);
+        }
+
+        // Handle completion
+        if (data.status === 'complete') {
+          console.log('Steering demo completed');
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    websocket.addEventListener('message', handleWebSocketMessage);
+    
+    return () => {
+      websocket.removeEventListener('message', handleWebSocketMessage);
+    };
+  }, [websocket, isVideo, onClose]);
+
+  // Handle WebSocket errors and closure
+  useEffect(() => {
+    if (!websocket) return;
+
+    const handleError = (error: Event) => {
+      console.error('WebSocket error:', error);
+      onClose();
+    };
+
+    const handleClose = () => {
+      console.log('WebSocket closed');
+      setIsWebSocketReady(false);
+      onClose();
+    };
+
+    websocket.addEventListener('error', handleError);
+    websocket.addEventListener('close', handleClose);
+
+    return () => {
+      websocket.removeEventListener('error', handleError);
+      websocket.removeEventListener('close', handleClose);
+    };
+  }, [websocket, onClose]);
 
   if (!mediaUrl || !isOpen) return null;
 
@@ -78,6 +153,7 @@ const SteeringDemoModal = ({
                   websocket={websocket}
                   demoType="steering"
                   onUpdate={handlePredictionUpdate}
+                  isInitialized={isWebSocketReady}
                 />
               </div>
             ) : (

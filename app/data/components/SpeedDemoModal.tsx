@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import SynchronizedVideoPlayer from './SynchronizedVideoPlayer';
-import { TelemetryData, SpeedPredictionData } from '../types';
+import { SpeedPredictionData } from '../types';
 
 interface SpeedDemoModalProps {
   isOpen: boolean;
@@ -12,24 +12,24 @@ interface SpeedDemoModalProps {
   setCurrentPrediction: (prediction: SpeedPredictionData | null) => void;
 }
 
-interface SpeedometerProps {
-  speed: number;
-  label: string;
-  confidenceLower?: number;
-  confidenceUpper?: number;
-}
-
-const Speedometer: React.FC<SpeedometerProps> = ({ 
+const Speedometer = ({ 
   speed, 
   label, 
   confidenceLower, 
   confidenceUpper 
+}: {
+  speed: number;
+  label: string;
+  confidenceLower?: number;
+  confidenceUpper?: number;
 }) => (
   <div className="flex flex-col items-center space-y-2">
     <h3 className="text-lg font-semibold">{label}</h3>
     <div className="relative w-40 h-40 bg-gray-200 dark:bg-gray-700 rounded-full">
       <div className="absolute inset-4 bg-white dark:bg-gray-800 rounded-full flex items-center justify-center flex-col">
-        <span className="text-3xl font-bold">{typeof speed === 'number' ? speed.toFixed(1) : '0.0'}</span>
+        <span className="text-3xl font-bold">
+          {speed ? speed.toFixed(1) : '0.0'}
+        </span>
         <span className="text-sm">km/h</span>
         {confidenceLower !== undefined && confidenceUpper !== undefined && (
           <span className="text-xs text-gray-500">
@@ -49,25 +49,99 @@ const SpeedDemoModal: React.FC<SpeedDemoModalProps> = ({
   currentPrediction,
   setCurrentPrediction
 }) => {
-  React.useEffect(() => {
+  // Track WebSocket readiness
+  const [isWebSocketReady, setIsWebSocketReady] = React.useState(false);
+  // Store all predictions
+  const [predictions, setPredictions] = React.useState<SpeedPredictionData[]>([]);
+  
+  // Reset states when modal closes
+  useEffect(() => {
     if (!isOpen) {
       setCurrentPrediction(null);
+      setIsWebSocketReady(false);
+      setPredictions([]);
     }
   }, [isOpen, setCurrentPrediction]);
-  const handlePredictionUpdate = (data: TelemetryData | SpeedPredictionData) => {
-    // Type guard to ensure we only process SpeedPredictionData
-    if ('velocity_kmh' in data) {
-      setCurrentPrediction(data as SpeedPredictionData);
-    }
-  };
+
+  // WebSocket message handling
+  useEffect(() => {
+    if (!websocket) return;
+
+    const handleWebSocketMessage = (event: MessageEvent) => {
+      try {
+        const data = JSON.parse(event.data);
+        
+        switch (data.status) {
+          case 'initialized':
+            setIsWebSocketReady(true);
+            setPredictions(prev => [...prev, data]);
+            break;
+          case 'streaming':
+            if (!isWebSocketReady) {
+              setIsWebSocketReady(true);
+            }
+            setPredictions(prev => [...prev, data]);
+            break;
+          case 'error':
+            console.error('Speed demo error:', data.message);
+            onClose();
+            break;
+          case 'complete':
+            console.log('Speed demo completed');
+            break;
+          default:
+            console.warn('Unknown status:', data.status);
+        }
+      } catch (error) {
+        console.error('Error parsing WebSocket message:', error);
+      }
+    };
+
+    websocket.addEventListener('message', handleWebSocketMessage);
+    
+    return () => {
+      websocket.removeEventListener('message', handleWebSocketMessage);
+    };
+  }, [websocket, onClose, isWebSocketReady]);
+
+  // Handle WebSocket errors and closure
+  useEffect(() => {
+    if (!websocket) return;
+
+    const handleError = (error: Event) => {
+      console.error('WebSocket error:', error);
+      setIsWebSocketReady(false);
+      onClose();
+    };
+
+    const handleClose = () => {
+      console.log('WebSocket closed');
+      setIsWebSocketReady(false);
+      onClose();
+    };
+
+    websocket.addEventListener('error', handleError);
+    websocket.addEventListener('close', handleClose);
+
+    return () => {
+      websocket.removeEventListener('error', handleError);
+      websocket.removeEventListener('close', handleClose);
+    };
+  }, [websocket, onClose]);
+
   if (!mediaUrl || !isOpen) return null;
 
   const groundTruthSpeed = currentPrediction?.ground_truth_velocity_kmh ?? 0;
   const predictedSpeed = currentPrediction?.velocity_kmh ?? 0;
 
+  // Handler for video time updates that syncs with predictions
+  const handlePredictionUpdate = (prediction: SpeedPredictionData) => {
+    setCurrentPrediction(prediction);
+  };
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
-      <div className="fixed inset-0 bg-black opacity-50" onClick={onClose}></div>
+      <div className="fixed inset-0 bg-black opacity-50" onClick={onClose} />
       
       <div className="relative bg-white dark:bg-gray-800 rounded-lg p-6 max-w-4xl w-full mx-4">
         <button 
@@ -80,14 +154,16 @@ const SpeedDemoModal: React.FC<SpeedDemoModalProps> = ({
         </button>
 
         <div className="flex flex-col space-y-6">
-          {/* Media Display */}
+          {/* Video Player */}
           <div className="flex justify-center">
             <div className="w-full max-w-3xl">
-              <SynchronizedVideoPlayer
+              <SynchronizedVideoPlayer<SpeedPredictionData>
                 videoUrl={mediaUrl}
                 websocket={websocket}
                 demoType="speed"
                 onUpdate={handlePredictionUpdate}
+                isInitialized={isWebSocketReady}
+                predictions={predictions}
               />
             </div>
           </div>
