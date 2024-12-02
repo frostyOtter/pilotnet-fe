@@ -116,8 +116,7 @@ const SpeedDemoModal: React.FC<SpeedDemoModalProps> = ({
 
     const handleClose = () => {
       console.log('WebSocket closed');
-      setIsWebSocketReady(false);
-      onClose();
+      setIsWebSocketReady(true);
     };
 
     websocket.addEventListener('error', handleError);
