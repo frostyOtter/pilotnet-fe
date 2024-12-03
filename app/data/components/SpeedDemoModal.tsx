@@ -162,7 +162,6 @@ const SpeedDemoModal: React.FC<SpeedDemoModalProps> = ({
                 demoType="speed"
                 onUpdate={handlePredictionUpdate}
                 isInitialized={isWebSocketReady}
-                predictions={predictions}
               />
             </div>
           </div>
