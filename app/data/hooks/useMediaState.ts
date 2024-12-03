@@ -1,34 +1,50 @@
 import { useState } from 'react';
-import { MediaState } from '../types';
+
+interface MediaCounts {
+  video_count: number;
+  image_count: number;
+}
 
 export const useMediaState = () => {
-  const [availableMedia, setAvailableMedia] = useState<MediaState['availableMedia']>({
-    videos: [],
-    images: [], 
+  // Available media info
+  const [availableMedia, setAvailableMedia] = useState<MediaCounts>({
     video_count: 0,
     image_count: 0
   });
-  const [randomVideoBlob, setRandomVideoBlob] = useState<string | null>(null);
-  const [randomImageBlobs, setRandomImageBlobs] = useState<string[]>([]);
+
+  // Media selection state
   const [mediaId, setMediaId] = useState('');
-  const [selectedVideoBlob, setSelectedVideoBlob] = useState<string | null>(null);
-  const [selectedImageBlob, setSelectedImageBlob] = useState<string | null>(null);
   const [currentMediaId, setCurrentMediaId] = useState<string | null>(null);
+  
+  // Video state
+  const [selectedVideoBlob, setSelectedVideoBlob] = useState<string | null>(null);
+  const [randomVideoBlob, setRandomVideoBlob] = useState<string | null>(null);
+  
+  // Image state
+  const [selectedImageBlob, setSelectedImageBlob] = useState<string | null>(null);
+  const [randomImageBlobs, setRandomImageBlobs] = useState<string[]>([]);
 
   return {
+    // Available media
     availableMedia,
     setAvailableMedia,
-    randomVideoBlob,
-    setRandomVideoBlob,
-    randomImageBlobs,
-    setRandomImageBlobs,
+    
+    // Media selection
     mediaId,
     setMediaId,
-    selectedVideoBlob,
-    setSelectedVideoBlob,
-    selectedImageBlob,
-    setSelectedImageBlob,
     currentMediaId,
     setCurrentMediaId,
+    
+    // Video state
+    selectedVideoBlob,
+    setSelectedVideoBlob,
+    randomVideoBlob,
+    setRandomVideoBlob,
+    
+    // Image state
+    selectedImageBlob,
+    setSelectedImageBlob,
+    randomImageBlobs,
+    setRandomImageBlobs,
   };
 };
