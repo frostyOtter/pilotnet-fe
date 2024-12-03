@@ -39,6 +39,7 @@ export interface MediaDisplayProps {
   randomImageBlobs: string[];
   onSteeringDemo: () => void;
   onSpeedDemo: () => void;
+  onCombinationDemo: () => void;
 }
 
 // Demo Types
@@ -56,4 +57,19 @@ export interface SpeedPredictionData {
   confidence_upper_kmh: number;
   iqr_kmh: number;
   frame_count: number;
+}
+
+export interface CombinationPredictionData {
+  status: string;
+  frame_count: number;
+  timestamp: number;
+  // Steering data
+  predicted_angle: number;
+  ground_truth_angle: number;
+  // Velocity data
+  velocity_kmh: number;
+  ground_truth_velocity_kmh: number | null;
+  confidence_lower_kmh: number;
+  confidence_upper_kmh: number;
+  iqr_kmh: number;
 }

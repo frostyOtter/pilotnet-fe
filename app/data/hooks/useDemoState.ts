@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { SpeedPredictionData } from '../types';
+import { SpeedPredictionData, CombinationPredictionData } from '../types';
 
 export const useDemoState = () => {
   // Steering demo state
@@ -11,6 +11,11 @@ export const useDemoState = () => {
   const [speedDemoWebSocket, setSpeedDemoWebSocket] = useState<WebSocket | null>(null);
   const [currentSpeedPrediction, setCurrentSpeedPrediction] = useState<SpeedPredictionData | null>(null);
 
+  // Combination demo state
+  const [isCombinationDemoModalOpen, setIsCombinationDemoModalOpen] = useState(false);
+  const [combinationDemoWebSocket, setCombinationDemoWebSocket] = useState<WebSocket | null>(null);
+  const [currentCombinationPrediction, setCurrentCombinationPrediction] = useState<CombinationPredictionData | null>(null);
+
   const cleanupSpeedDemo = () => {
     setIsSpeedDemoModalOpen(false);
     setCurrentSpeedPrediction(null);
@@ -20,13 +25,23 @@ export const useDemoState = () => {
     }
   };
 
+  const cleanupCombinationDemo = () => {
+    setIsCombinationDemoModalOpen(false);
+    setCurrentCombinationPrediction(null);
+    if (combinationDemoWebSocket) {
+      combinationDemoWebSocket.close();
+      setCombinationDemoWebSocket(null);
+    }
+  };
+
   // Cleanup WebSockets on unmount
   useEffect(() => {
     return () => {
       demoWebSocket?.close();
       speedDemoWebSocket?.close();
+      combinationDemoWebSocket?.close();
     };
-  }, [demoWebSocket, speedDemoWebSocket]);
+  }, [demoWebSocket, speedDemoWebSocket, combinationDemoWebSocket]);
 
   return {
     // Steering demo
@@ -43,5 +58,14 @@ export const useDemoState = () => {
     currentSpeedPrediction,
     setCurrentSpeedPrediction,
     cleanupSpeedDemo,
+
+    // Combination demo
+    isCombinationDemoModalOpen,
+    setIsCombinationDemoModalOpen,
+    combinationDemoWebSocket,
+    setCombinationDemoWebSocket,
+    currentCombinationPrediction,
+    setCurrentCombinationPrediction,
+    cleanupCombinationDemo,
   };
 };
