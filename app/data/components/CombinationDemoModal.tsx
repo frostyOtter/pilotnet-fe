@@ -22,7 +22,7 @@ const SteeringWheel = ({ angle, label }: { angle: number; label: string }) => (
         style={{ transform: `rotate(${angle}deg)` }}
       >
         <Image
-          src="/steering_wheel_image.jpg"
+          src="/IMG_3791.jpeg"
           alt={`${label} Steering Wheel`}
           fill
           sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
@@ -32,7 +32,7 @@ const SteeringWheel = ({ angle, label }: { angle: number; label: string }) => (
       </div>
     </div>
     <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
-      {angle.toFixed(1)}°
+      {angle.toFixed(1)} π
     </div>
   </div>
 );
@@ -77,7 +77,7 @@ const CombinationDemoModal: React.FC<CombinationDemoModalProps> = ({
   const [isWebSocketReady, setIsWebSocketReady] = React.useState(false);
 
   // Reset states when modal closes
-  React.useEffect(() => {
+  useEffect(() => {
     if (!isOpen) {
       setCurrentPrediction(null);
       setIsWebSocketReady(false);
@@ -85,7 +85,7 @@ const CombinationDemoModal: React.FC<CombinationDemoModalProps> = ({
   }, [isOpen, setCurrentPrediction]);
 
   // WebSocket message handling
-  React.useEffect(() => {
+  useEffect(() => {
     if (!websocket) return;
 
     const handleWebSocketMessage = (event: MessageEvent) => {
