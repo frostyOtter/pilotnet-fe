@@ -3,7 +3,8 @@ import {
   SingleMediaResponse, 
   MultipleImagesResponse, 
   TelemetryData, 
-  SpeedPredictionData 
+  SpeedPredictionData,
+  CombinationPredictionData
 } from '../types';
 
 const API_BASE = '/api/py';
@@ -171,6 +172,51 @@ export const startSpeedDemo = async (
 
   } catch (error) {
     console.error('Error in speed demo:', error);
+    throw error;
+  }
+};
+
+export const startCombinationDemo = async (
+  mediaId: string,
+  isVideo: boolean
+): Promise<DemoResponse<CombinationPredictionData>> => {
+  try {
+    if (!isVideo) {
+      throw new Error('Combination demo is only available for videos');
+    }
+
+    const ws = new WebSocket(`ws://localhost:8000/api/demo/ws/combination`);
+
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        ws.close();
+        reject(new Error('WebSocket connection timeout'));
+      }, 5000);
+
+      ws.onopen = () => {
+        clearTimeout(timeout);
+        console.log('WebSocket connection established');
+        ws.send(JSON.stringify({ video_id: mediaId }));
+        resolve({ ws, prediction: null });
+      };
+
+      ws.onerror = (error) => {
+        clearTimeout(timeout);
+        console.error('WebSocket error:', error);
+        reject(error);
+      };
+
+      ws.onclose = (event) => {
+        clearTimeout(timeout);
+        console.log('WebSocket closed:', event.code, event.reason);
+        if (event.code !== 1000) {
+          reject(new Error(`WebSocket closed abnormally: ${event.code}`));
+        }
+      };
+    });
+
+  } catch (error) {
+    console.error('Error in combination demo:', error);
     throw error;
   }
 };

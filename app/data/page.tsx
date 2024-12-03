@@ -8,6 +8,7 @@ import { MediaControlPanel } from './components/MediaControlPanel';
 import { MediaDisplay } from './components/MediaDisplay';
 import SteeringDemoModal from './components/SteeringDemoModal';
 import SpeedDemoModal from './components/SpeedDemoModal';
+import CombinationDemoModal from './components/CombinationDemoModal';
 import { useMediaState } from './hooks/useMediaState';
 import { useDemoState } from './hooks/useDemoState';
 import * as api from './utils/api';
@@ -31,10 +32,12 @@ export default function DataPage() {
   } = useMediaState();
 
   const {
+    // Steering demo states
     isDemoModalOpen,
     setIsDemoModalOpen,
     demoWebSocket,
     setDemoWebSocket,
+    // Speed demo states
     isSpeedDemoModalOpen,
     setIsSpeedDemoModalOpen,
     speedDemoWebSocket,
@@ -42,6 +45,14 @@ export default function DataPage() {
     currentSpeedPrediction,
     setCurrentSpeedPrediction,
     cleanupSpeedDemo,
+    // Combination demo states
+    isCombinationDemoModalOpen,
+    setIsCombinationDemoModalOpen,
+    combinationDemoWebSocket,
+    setCombinationDemoWebSocket,
+    currentCombinationPrediction,
+    setCurrentCombinationPrediction,
+    cleanupCombinationDemo,
   } = useDemoState();
 
   // Fetch available media on mount
@@ -53,6 +64,7 @@ export default function DataPage() {
     return () => {
       demoWebSocket?.close();
       speedDemoWebSocket?.close();
+      combinationDemoWebSocket?.close();
     };
   }, []);
 
@@ -127,6 +139,25 @@ export default function DataPage() {
     }
   };
 
+  const handleCombinationDemo = async () => {
+    if (!currentMediaId) return;
+
+    try {
+      const isVideo = Boolean(selectedVideoBlob || randomVideoBlob);
+      if (!isVideo) {
+        alert('Combination demo is only available for videos');
+        return;
+      }
+
+      setIsCombinationDemoModalOpen(true);
+      const result = await api.startCombinationDemo(currentMediaId, isVideo);
+      setCombinationDemoWebSocket(result.ws);
+    } catch (error) {
+      console.error('Error in combination demo:', error);
+      cleanupCombinationDemo();
+    }
+  };
+
   const handleCloseSteeringDemo = () => {
     setIsDemoModalOpen(false);
     if (demoWebSocket) {
@@ -159,6 +190,7 @@ export default function DataPage() {
           randomImageBlobs={randomImageBlobs}
           onSteeringDemo={handleSteeringDemo}
           onSpeedDemo={handleSpeedDemo}
+          onCombinationDemo={handleCombinationDemo}
         />
 
         <SteeringDemoModal
@@ -178,6 +210,16 @@ export default function DataPage() {
           websocket={speedDemoWebSocket}
           currentPrediction={currentSpeedPrediction}
           setCurrentPrediction={setCurrentSpeedPrediction}
+        />
+
+        <CombinationDemoModal
+          isOpen={isCombinationDemoModalOpen}
+          onClose={cleanupCombinationDemo}
+          mediaUrl={selectedVideoBlob || randomVideoBlob}
+          mediaId={currentMediaId}
+          websocket={combinationDemoWebSocket}
+          currentPrediction={currentCombinationPrediction}
+          setCurrentPrediction={setCurrentCombinationPrediction}
         />
       </main>
 

@@ -1,6 +1,7 @@
 import React from 'react';
 import SteeringDemoButton from './SteeringDemoButton';
 import SpeedDemoButton from './SpeedDemoButton';
+import CombinationDemoButton from './CombinationDemoButton';
 
 interface MediaDisplayProps {
   selectedVideoBlob: string | null;
@@ -9,16 +10,23 @@ interface MediaDisplayProps {
   randomImageBlobs: string[];
   onSteeringDemo: () => void;
   onSpeedDemo: () => void;
+  onCombinationDemo: () => void;
 }
 
-const DemoButtons: React.FC<{ onSteeringDemo: () => void; onSpeedDemo: () => void; isVideo: boolean }> = ({ 
+const DemoButtons: React.FC<{ onSteeringDemo: () => void; onSpeedDemo: () => void; onCombinationDemo: () => void; isVideo: boolean }> = ({ 
   onSteeringDemo, 
-  onSpeedDemo, 
+  onSpeedDemo,
+  onCombinationDemo,
   isVideo 
 }) => (
   <div className="flex space-x-4 mt-4">
     <SteeringDemoButton onClick={onSteeringDemo} />
-    {isVideo && <SpeedDemoButton onClick={onSpeedDemo} />}
+    {isVideo && (
+      <>
+        <SpeedDemoButton onClick={onSpeedDemo} />
+        <CombinationDemoButton onClick={onCombinationDemo} />
+      </>
+    )}
   </div>
 );
 
@@ -28,7 +36,8 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
   randomVideoBlob,
   randomImageBlobs,
   onSteeringDemo,
-  onSpeedDemo
+  onSpeedDemo,
+  onCombinationDemo
 }) => {
   return (
     <>
@@ -39,6 +48,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           <DemoButtons 
             onSteeringDemo={onSteeringDemo} 
             onSpeedDemo={onSpeedDemo}
+            onCombinationDemo={onCombinationDemo}
             isVideo={true}
           />
         </div>
@@ -51,6 +61,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           <DemoButtons 
             onSteeringDemo={onSteeringDemo} 
             onSpeedDemo={onSpeedDemo}
+            onCombinationDemo={onCombinationDemo}
             isVideo={false}
           />
         </div>
@@ -63,6 +74,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
           <DemoButtons 
             onSteeringDemo={onSteeringDemo} 
             onSpeedDemo={onSpeedDemo}
+            onCombinationDemo={onCombinationDemo}
             isVideo={true}
           />
         </div>
@@ -78,6 +90,7 @@ export const MediaDisplay: React.FC<MediaDisplayProps> = ({
                 <DemoButtons 
                   onSteeringDemo={onSteeringDemo} 
                   onSpeedDemo={onSpeedDemo}
+                  onCombinationDemo={onCombinationDemo}
                   isVideo={false}
                 />
               </div>
