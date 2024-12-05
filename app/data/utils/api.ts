@@ -5,7 +5,6 @@ import {
   TelemetryData, 
   SpeedPredictionData,
   CombinationPredictionData,
-  SingleVideoResponse
 } from '../types';
 
 const API_BASE = '/api/py';
@@ -23,37 +22,12 @@ export const fetchAvailableMedia = async (): Promise<AvailableMedia> => {
 
 export const fetchRandomVideo = async (): Promise<SingleMediaResponse> => {
   try {
-    // First, get a random video ID
-    const response = await fetch(`${API_BASE}/data/random-video`, {
-      headers: {
-        'Accept': 'application/json'
-      }
-    });
-    
-    if (!response.ok) {
-      console.error('Response not OK:', response.status, response.statusText);
-      throw new Error(`Failed to fetch random video ID: ${response.status}`);
-    }
-    
-    // Check if we received JSON or binary data
-    const contentType = response.headers.get('content-type');
-    
-    if (contentType && contentType.includes('application/json')) {
-      // Handle JSON response
-      const data = await response.json();
-      const videoId = data.video_path[0].replace(/\.mp4$/i, '');
-      const videoData = await fetchMediaById(videoId, 'video');
-      return {
-        url: videoData.url,
-        filename: videoId
-      };
-    } else {
-      // Handle binary response (direct video data)
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const filename = response.headers.get('content-disposition')?.split('filename=')[1]?.replace(/\.mp4$/i, '') || 'random';
-      return { url, filename };
-    }
+    const response = await fetch(`${API_BASE}/data/random-video`);
+    if (!response.ok) throw new Error('Failed to fetch random video');
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    const filename = response.headers.get('content-disposition')?.split('filename=')[1] || 'random';
+    return { url, filename };
   } catch (error) {
     console.error('Error fetching random video:', error);
     throw error;

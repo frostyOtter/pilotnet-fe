@@ -21,11 +21,6 @@ export interface MultipleImagesResponse {
   blobs: string[];
 }
 
-export interface SingleVideoResponse {
-  paths: string[];
-  blobs: string[];
-}
-
 // Component Props Types
 export interface MediaControlPanelProps {
   availableMedia: MediaCounts;
