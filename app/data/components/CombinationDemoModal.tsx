@@ -32,7 +32,7 @@ const SteeringWheel = ({ angle, label }: { angle: number; label: string }) => (
       </div>
     </div>
     <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
-      {angle.toFixed(1)} π
+      {angle.toFixed(1)}
     </div>
   </div>
 );

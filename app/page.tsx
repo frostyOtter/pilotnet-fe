@@ -1,63 +1,73 @@
+"use client";
+
+import React from 'react';
 import Image from "next/image";
-import Link from "next/link";
+import Header from './components/Header';
+import Navbar from './components/Navbar';
+import Footer from './components/Footer';
 
-export default function Home() {
+const Home = () => {
   return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+    <div className="flex min-h-screen flex-col items-center justify-between bg-gradient-to-b from-zinc-200 to-white dark:from-zinc-800 dark:to-black">
+      <Header />
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-3 lg:text-left">
-        <Link href="/design"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Demo{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Design, train, and demo driving models from YAML settings.
-          </p>
-        </Link>
+      <main className="w-full max-w-5xl px-4 py-8">
+        <h1 className="text-4xl font-bold mb-8 text-center">Planning for Automated Driving System</h1>
 
-        <Link href="/data"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Data{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore the data.
-          </p>
-        </Link>
+        <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-md">
+          <div className="prose dark:prose-invert max-w-none">
+            <section className="mb-8">
+              <h2 className="font-bold text-3xl mb-4">Project Object</h2>
+              
+              {/* Project Overview Images Container */}
+              <div className="flex justify-center gap-4 mb-6">
+                <Image
+                  className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
+                  src="/project_overview_1.jpg"
+                  alt="project_overview_1"
+                  width={300}
+                  height={50}
+                  priority
+                />
+                <Image
+                  className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
+                  src="/project_overview_2.jpg"
+                  alt="project_overview_2"
+                  width={300}
+                  height={50}
+                  priority
+                />
+              </div>
 
-        <Link href="/about"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            About us{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Read about the project and our team.
-          </p>
-        </Link>
-      </div>
-    </main>
+              <p>
+                This project aims to develop an AI-driven solution for predicting car steering angles and optimal velocities with high accuracy and low latency.
+                It focuses on practical deployment feasibility, ensuring steering predictions and precise and velocity predictions remain within acceptable limits under normal driving conditions.
+              </p>
+            </section>
+
+            <hr className="my-8 border-gray-300 dark:border-gray-700" />
+
+            <section className="mb-8">
+              <h2 className="font-bold text-3xl mb-4">Pipeline Overview</h2>
+              {/* Pipeline Overview Image Container */}
+              <div className="flex justify-center">
+                <Image
+                  className=""
+                  src="/Pipeline_Overview.png"
+                  alt="pipeline_overview"
+                  width={1000}
+                  height={500}
+                  priority
+                />
+              </div>
+            </section>
+          </div>
+        </div>
+      </main>
+      <Navbar />
+      <Footer />
+    </div>
   );
-}
+};
+
+export default Home;

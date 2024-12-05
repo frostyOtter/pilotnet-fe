@@ -7,20 +7,20 @@ const Navbar = () => {
   const isHomePage = pathname === '/';
 
   return (
-    <nav className="w-full max-w-5xl mx-auto mb-8 grid grid-cols-3 gap-4 text-center">
+    <nav className="w-full max-w-5xl mx-auto mb-8 grid grid-cols-2 gap-4 text-center">
       {isHomePage ? (
         <>
-          <Link href="/design"
+          <Link href="/demo"
             className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
           >
             <h2 className="mb-3 text-2xl font-semibold">
-              Design{" "}
+              Demo{" "}
               <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
                 -&gt;
               </span>
             </h2>
-            <p className="m-0 max-w-[30ch] text-sm opacity-50">
-              Design, train, and demo driving models from YAML settings.
+            <p className="m-0 text-sm opacity-50 mx-auto text-center">
+              Demo automated driving system
             </p>
           </Link>
 
@@ -33,12 +33,12 @@ const Navbar = () => {
                 -&gt;
               </span>
             </h2>
-            <p className="m-0 max-w-[30ch] text-sm opacity-50">
-              Explore the data.
+            <p className="m-0 text-sm opacity-50 mx-auto text-center">
+              Explore the data
             </p>
           </Link>
 
-          <Link href="/about"
+          {/* <Link href="/about"
             className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
           >
             <h2 className="mb-3 text-2xl font-semibold">
@@ -48,9 +48,9 @@ const Navbar = () => {
               </span>
             </h2>
             <p className="m-0 max-w-[30ch] text-sm opacity-50">
-              Read about the project and our team.
+              About the project and architecture
             </p>
-          </Link>
+          </Link> */}
         </>
       ) : (
         <>
@@ -63,23 +63,23 @@ const Navbar = () => {
                 -&gt;
               </span>
             </h2>
-            <p className="m-0 max-w-[30ch] text-sm opacity-50">
+            <p className="m-0 text-sm opacity-50 mx-auto text-center">
               Return to the homepage
             </p>
           </Link>
 
-          {pathname !== '/design' && (
-            <Link href="/design"
+          {pathname !== '/demo' && (
+            <Link href="/demo"
               className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
             >
               <h2 className="mb-3 text-2xl font-semibold">
-                Design{" "}
+                Demo{" "}
                 <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
                   -&gt;
                 </span>
               </h2>
-              <p className="m-0 max-w-[30ch] text-sm opacity-50">
-                Design, train, and demo driving models
+              <p className="m-0 text-sm opacity-50 mx-auto text-center">
+                Demo automated driving system
               </p>
             </Link>
           )}
@@ -94,27 +94,27 @@ const Navbar = () => {
                   -&gt;
                 </span>
               </h2>
-              <p className="m-0 max-w-[30ch] text-sm opacity-50">
+              <p className="m-0 text-sm opacity-50 mx-auto text-center">
                 Explore the data
               </p>
             </Link>
           )}
 
-          {pathname !== '/about' && (
+          {/* {pathname !== '/about' && (
             <Link href="/about"
               className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
             >
               <h2 className="mb-3 text-2xl font-semibold">
-                About{" "}
+                About us{" "}
                 <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
                   -&gt;
                 </span>
               </h2>
               <p className="m-0 max-w-[30ch] text-sm opacity-50">
-                Learn about the project
+                About the project and architecture
               </p>
             </Link>
-          )}
+          )} */}
         </>
       )}
     </nav>

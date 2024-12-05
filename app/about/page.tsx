@@ -1,10 +1,10 @@
 "use client";
-//The "use client" directive at the top of the file tells Next.js that this is a Client Component,
-//allowing the use of React hooks and other client-side features.
+
 import React from 'react';
 import Header from '../components/Header';
 import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
+import Image from "next/image";
 
 const AboutPage = () => {
   return (
@@ -12,65 +12,54 @@ const AboutPage = () => {
       <Header />
 
       <main className="w-full max-w-5xl px-4 py-8">
-        <h1 className="text-4xl font-bold mb-8 text-center">About PilotNet</h1>
+        <h1 className="text-4xl font-bold mb-8 text-center">Planning for Automated Driving System</h1>
 
         <div className="bg-white dark:bg-zinc-800 p-6 rounded-lg shadow-md">
           <div className="prose dark:prose-invert max-w-none">
             <section className="mb-8">
-              <h2 className="font-bold text-2xl mb-4">Our Mission</h2>
+              <h2 className="font-bold text-3xl mb-4">Project Object</h2>
+              
+              {/* Project Overview Images Container */}
+              <div className="flex justify-center gap-4 mb-6">
+                <Image
+                  className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
+                  src="/project_overview_1.jpg"
+                  alt="project_overview_1"
+                  width={300}
+                  height={50}
+                  priority
+                />
+                <Image
+                  className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
+                  src="/project_overview_2.jpg"
+                  alt="project_overview_2"
+                  width={300}
+                  height={50}
+                  priority
+                />
+              </div>
+
               <p>
-                PilotNet is dedicated to advancing autonomous driving technology through 
-                innovative machine learning approaches. Our mission is to create safer,
-                more efficient transportation systems that benefit society as a whole.
+                This project aims to develop an AI-driven solution for predicting car steering angles and optimal velocities with high accuracy and low latency.
+                It focuses on practical deployment feasibility, ensuring steering predictions and precise and velocity predictions remain within acceptable limits under normal driving conditions.
               </p>
             </section>
 
             <hr className="my-8 border-gray-300 dark:border-gray-700" />
 
             <section className="mb-8">
-              <h2 className="font-bold text-2xl mb-4">The Technology</h2>
-              <p>
-                At the heart of PilotNet is a deep learning model designed to predict
-                steering angles from camera inputs. By training on diverse driving scenarios,
-                our model learns to navigate complex road conditions, adapting to various
-                environments and situations.
-              </p>
-            </section>
-
-            <hr className="my-8 border-gray-300 dark:border-gray-700" />
-
-            <section className="mb-8">
-              <h2 className="font-bold text-2xl mb-4">Key Features</h2>
-              <ul className="list-disc pl-5">
-                <li>End-to-end learning from pixels to steering commands</li>
-                <li>Robust performance across different weather and lighting conditions</li>
-                <li>Continuous improvement through iterative training and real-world data</li>
-                <li>Modular architecture allowing for easy integration and expansion</li>
-              </ul>
-            </section>
-
-            <hr className="my-8 border-gray-300 dark:border-gray-700" />
-
-            <section className="mb-8">
-              <h2 className="font-bold text-2xl mb-4">Our Team</h2>
-              <p>
-                PilotNet is developed by a diverse team of experts in machine learning,
-                computer vision, and automotive engineering. Our collaborative approach
-                brings together the best minds in the field to tackle the challenges of
-                autonomous driving.
-              </p>
-            </section>
-
-            <hr className="my-8 border-gray-300 dark:border-gray-700" />
-
-            <section className="mb-8">
-              <h2 className="font-bold text-2xl mb-4">Looking Forward</h2>
-              <p>
-                As we continue to refine and expand PilotNet, we're excited about the
-                potential impact on transportation, urban planning, and environmental
-                sustainability. We're committed to open collaboration and responsible
-                development as we work towards a future of safer, smarter mobility.
-              </p>
+              <h2 className="font-bold text-3xl mb-4">Pipeline Overview</h2>
+              {/* Pipeline Overview Image Container */}
+              <div className="flex justify-center">
+                <Image
+                  className=""
+                  src="/Pipeline_Overview.png"
+                  alt="pipeline_overview"
+                  width={1000}
+                  height={500}
+                  priority
+                />
+              </div>
             </section>
           </div>
         </div>
