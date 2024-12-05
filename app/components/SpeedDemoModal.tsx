@@ -2,6 +2,7 @@ import React, { useEffect } from 'react';
 import SynchronizedVideoPlayer from './SynchronizedVideoPlayer';
 import { SpeedPredictionData } from '../types';
 
+
 interface SpeedDemoModalProps {
   isOpen: boolean;
   onClose: () => void;

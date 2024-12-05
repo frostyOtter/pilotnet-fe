@@ -3,6 +3,7 @@ import Image from 'next/image';
 import SynchronizedVideoPlayer from './SynchronizedVideoPlayer';
 import { TelemetryData } from '../types';
 
+
 interface SteeringDemoModalProps {
   isOpen: boolean;
   onClose: () => void;

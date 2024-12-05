@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { TelemetryData, SpeedPredictionData } from '../types';
 
+
 interface SynchronizedVideoPlayerProps<T extends TelemetryData | SpeedPredictionData> {
   videoUrl: string;
   websocket: WebSocket | null;

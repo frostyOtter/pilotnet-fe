@@ -4,14 +4,15 @@ import React, { useEffect } from 'react';
 import Header from '@/app/components/Header';
 import Navbar from '@/app/components/Navbar';
 import Footer from '@/app/components/Footer';
-import { MediaControlPanel } from './components/MediaControlPanel';
-import { MediaDisplay } from './components/MediaDisplay';
-import SteeringDemoModal from './components/SteeringDemoModal';
-import SpeedDemoModal from './components/SpeedDemoModal';
-import CombinationDemoModal from './components/CombinationDemoModal';
-import { useMediaState } from './hooks/useMediaState';
-import { useDemoState } from './hooks/useDemoState';
-import * as api from './utils/api';
+
+import { useMediaState } from '../hooks/useMediaState';
+import { useDemoState } from '../hooks/useDemoState';
+import CombinationDemoModal from '../components/CombinationDemoModal';
+import { MediaControlPanel } from '../components/MediaControlPanel';
+import { MediaDisplay } from '../components/MediaDisplay';
+import SpeedDemoModal from '../components/SpeedDemoModal';
+import SteeringDemoModal from '../components/SteeringDemoModal';
+import * as api from '../api/api';
 
 export default function DataPage() {
   const {

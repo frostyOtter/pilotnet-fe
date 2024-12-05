@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import Image from 'next/image';
-import { CombinationPredictionData } from '../types';
 import SynchronizedCombinationVideoPlayer from './SynchronizedCombinationVideoPlayer';
+import { CombinationPredictionData } from '../types';
 
 interface CombinationDemoModalProps {
   isOpen: boolean;

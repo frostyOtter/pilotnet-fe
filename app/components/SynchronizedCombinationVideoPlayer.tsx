@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { CombinationPredictionData } from '../types';
 
+
 interface SynchronizedCombinationVideoPlayerProps {
   videoUrl: string;
   websocket: WebSocket | null;
