@@ -1,0 +1,13 @@
+# Ignore the following files and directories
+.git
+.gitignore
+node_modules
+.next
+.env*
+*/config/*.json
+*/logs
+*/tmp
+*/dist
+*/build
+*.swp
+*.swo
